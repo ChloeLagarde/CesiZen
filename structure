@@ -1,0 +1,27 @@
+📁 emotion-tracker/
+│
+├── 📁 config/
+│   └── database.php                # Configuration de la base de données
+│
+├── 📁 modele/
+│   └── Database.php                    # Gestion de la connexion à la base de données
+│
+├── 📁 controleur/
+│   ├── auth.php                    # Gestion de la connexion et déconnexion
+│   ├── gestionApplications.php     # Gestion des applications
+│   └── gestionEmotions.php         # Gestion des émotions
+│
+├── 📁 vue/
+│   ├── login.php                   # Formulaire de connexion
+│   ├── register.php                # Formulaire d'inscription
+│   ├── applications.php            # Interface des applications
+│   ├── trackeur.php                # Interface de saisie des émotions
+│   └── dashboard.php               # Tableau de bord des émotions
+│
+├── 📁 assets/
+│   ├── 📁 css/
+│   │   └── styles.css              # Feuilles de styles
+│   └── 📁 js/
+│       └── script.js               # Scripts JavaScript
+│
+└── index.php                       # Point d'entrée principal

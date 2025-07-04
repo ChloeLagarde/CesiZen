@@ -1,0 +1,56 @@
+/* Nouveau style pour la page d'accueil BreatheMind */
+
+body {
+  background-color: #f7f9fc;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  color: #333;
+  margin: 0;
+  padding: 0;
+}
+
+h1 {
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.card {
+  border: none;
+  border-radius: 1rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  background-color: #ffffff;
+  cursor: pointer;
+}
+
+.card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.1);
+}
+
+.card .card-body i {
+  background-color: #e0f2fe;
+  border-radius: 50%;
+  padding: 12px;
+  display: inline-block;
+}
+
+.card-title {
+  font-size: 1.25rem;
+  margin-bottom: 0.5rem;
+}
+
+.card-text {
+  font-size: 0.95rem;
+  color: #555;
+}
+
+.text-muted {
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+a.stretched-link::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}

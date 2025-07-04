@@ -1,0 +1,7 @@
+{
+    "name": "lagar/cesi-zen",
+    "description": "test",
+    "require-dev": {
+        "phpunit/phpunit": "^9.6"
+    }
+}
