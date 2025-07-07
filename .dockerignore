@@ -1,0 +1,124 @@
+# Fichiers Git
+.git
+.gitignore
+.gitattributes
+
+# Documentation
+README.md
+*.md
+docs/
+documentation/
+
+# Fichiers de développement
+.env
+.env.local
+.env.development
+.env.production
+.vscode/
+.idea/
+*.log
+
+# Fichiers temporaires et cache
+tmp/
+temp/
+cache/
+logs/
+*.log
+*.tmp
+
+# Fichiers de sauvegarde
+*.bak
+*.swp
+*.swo
+*~
+
+# Dépendances (seront installées dans le container)
+vendor/
+node_modules/
+bower_components/
+
+# Fichiers de build
+dist/
+build/
+
+# Fichiers OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Fichiers Visual Studio
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Fichiers de test
+tests/
+phpunit.xml
+phpunit.xml.dist
+.phpunit.result.cache
+
+# Fichiers Docker existants (éviter la récursion)
+Dockerfile
+docker-compose.yml
+docker-compose.yaml
+.dockerignore
+
+# Fichiers de configuration locale (WampServer)
+wamp/
+xampp/
+
+# Fichiers de base de données locaux
+*.sql.bak
+dump.sql
+backup.sql
+
+# Fichiers uploads temporaires (seront gérés par volumes)
+uploads/temp/
+tmp_uploads/
+
+# Fichiers de configuration IDE
+*.sublime-project
+*.sublime-workspace
+
+# Fichiers NPM et Yarn
+package-lock.json
+yarn.lock
+.npm/
+.yarn/
+
+# Fichiers PHP temporaires
+*.php~
+*.phps
+
+# Fichiers de session PHP
+sessions/
+
+# Fichiers Composer locaux (sera réinstallé dans le container)
+composer.phar
+composer.lock
+
+# Fichiers de monitoring et profiling
+profile/
+profiler/
+xdebug/
+
+# Certificats SSL (à gérer séparément)
+*.pem
+*.key
+*.crt
+ssl/
+
+# Fichiers de sauvegarde d'éditeur
+*.orig
+*.rej
+
+# Fichiers de configuration spécifiques à l'environnement
+config/local.php
+config/development.php
+config/production.php
+
+# Répertoires de données persistantes (gérés par volumes Docker)
+data/
+storage/
