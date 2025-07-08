@@ -1,0 +1,69 @@
+name: 02-1 - Delivery - Docker GHCR
+
+on:
+  workflow_call:
+    inputs:
+      docker-mode:
+        required: false
+        type: string
+        default: ""
+
+env:
+  REGISTRY: ghcr.io
+  USERNAME: ${{github.actor}}
+  IMAGE_NAME: ${{github.repository}} #orga/repo
+
+jobs:
+  Build-Push-DockerGhcr:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Registry Login
+        uses: docker/login-action@v3
+        with:
+          registry: ${{env.REGISTRY}}
+          username: ${{env.USERNAME}}
+          password: ${{secrets.GITHUB_TOKEN}}
+
+      - name: Downcase Image Name
+        run: echo "IMAGE_NAME_LOWER=${GITHUB_REPOSITORY,,}" >> ${GITHUB_ENV}
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and Push CesiZen Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true         
+          tags: |
+            ${{env.REGISTRY}}/${{env.IMAGE_NAME_LOWER}}:${{inputs.docker-mode}}
+            ${{env.REGISTRY}}/${{env.IMAGE_NAME_LOWER}}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Test Built Image
+        run: |
+          # Test que l'image se lance correctement
+          docker run --rm -d --name cesizen-test \
+            -e DB_HOST=localhost \
+            -e DB_NAME=cesizentest \
+            -e DB_USER=root \
+            -e DB_PASS=password \
+            ${{env.REGISTRY}}/${{env.IMAGE_NAME_LOWER}}:${{inputs.docker-mode}}
+          
+          sleep 10
+          
+          # Vérifier que le conteneur est toujours en cours d'exécution
+          if ! docker ps | grep cesizen-test; then
+            echo "Le conteneur a crashé"
+            docker logs cesizen-test
+            exit 1
+          fi
+          
+          # Nettoyer
+          docker stop cesizen-test

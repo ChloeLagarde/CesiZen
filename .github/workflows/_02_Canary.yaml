@@ -1,0 +1,38 @@
+name: 02 - Canary
+
+on:
+  push:
+    branches:
+      - develop
+      - release/*
+
+jobs:
+  Display_Data:
+    runs-on: ubuntu-latest
+    steps:
+      - run: env | sort
+
+  Build_Push_Docker:
+    if: ${{github.ref_name == 'develop'}}
+    uses: ./.github/workflows/z_Docker-Ghcr.yaml
+    secrets: inherit
+    with:
+      docker-mode: canary
+
+  Trivy_Scan_Image:
+    needs: [Build_Push_Docker]
+    uses: ./.github/workflows/02-2_TrivyScan.yaml
+    secrets: inherit
+
+  Deploy_Canary:
+    needs: [Trivy_Scan_Image]
+    uses: ./.github/workflows/02-3_DeployCanary.yaml
+    secrets: inherit
+    permissions:
+      id-token: write
+
+  Security_ZAP_Scan:
+    needs: [Deploy_Canary]
+    uses: ./.github/workflows/02-4_ZapScan.yaml
+    permissions:
+      issues: write

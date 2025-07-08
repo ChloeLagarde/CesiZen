@@ -1,0 +1,123 @@
+name: 02-3 - Deploy - Canary
+
+on:
+  workflow_call
+
+jobs:
+  AzureCanaryServer:
+    runs-on: ubuntu-latest
+
+    env:
+      ResourceGroupName: "CesiZen-Canary"
+      ResourceGroupLocation: "francecentral"
+
+    steps:
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+        
+      - name: Azure CLI Create Resource Group
+        uses: azure/CLI@v2
+        with:
+          inlineScript: |
+            #!/bin/bash
+            az group create --name ${{env.ResourceGroupName}} --location ${{env.ResourceGroupLocation}}
+            echo "Azure resource group created"
+
+      - name: Azure ARM Deploy
+        uses: azure/arm-deploy@v2
+        with:
+          resourceGroupName: ${{env.ResourceGroupName}}
+          scope: resourcegroup
+          template: https://raw.githubusercontent.com/Azure/azure-quickstart-templates/bf4221ac079ad74df4200038446f4b5f0295bd5a/quickstarts/microsoft.compute/vm-simple-linux/azuredeploy.json
+          parameters: adminUsername=${{secrets.AZURE_VM_LOGIN}} adminPasswordOrKey=${{secrets.AZURE_VM_PASSWORD}} vmName="CesiZen-Canary-Server" vmSize="Standard_B2s"
+          
+      - name: Open Ports on Security Group
+        uses: azure/CLI@v2
+        with:
+          inlineScript: |
+            az network nsg rule create --resource-group ${{env.ResourceGroupName}} --nsg-name SecGroupNet --name PortWeb-8000 --priority 100 --direction Inbound --access Allow --protocol Tcp --source-address-prefixes "*" --source-port-ranges "*" --destination-address-prefixes "*" --destination-port-ranges 8000
+            az network nsg rule create --resource-group ${{env.ResourceGroupName}} --nsg-name SecGroupNet --name PortDB-3306 --priority 101 --direction Inbound --access Allow --protocol Tcp --source-address-prefixes "*" --source-port-ranges "*" --destination-address-prefixes "*" --destination-port-ranges 3306
+            az network nsg rule create --resource-group ${{env.ResourceGroupName}} --nsg-name SecGroupNet --name PortAdminer-8080 --priority 102 --direction Inbound --access Allow --protocol Tcp --source-address-prefixes "*" --source-port-ranges "*" --destination-address-prefixes "*" --destination-port-ranges 8080
+  
+      - name: Get Public IP
+        if: success()
+        uses: azure/CLI@v2
+        with:
+          inlineScript: |
+            #!/bin/bash
+            az vm show -d -g ${{env.ResourceGroupName}} -n CesiZen-Canary-Server --query publicIps -o tsv
+            echo "AZURE_VM_IP=$(az vm show -d -g ${{env.ResourceGroupName}} -n CesiZen-Canary-Server --query publicIps -o tsv)" >> $GITHUB_ENV            
+          
+      - name: Install Docker on VM
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{env.AZURE_VM_IP}}
+          port: ${{secrets.PORT}} 
+          username: ${{secrets.AZURE_VM_LOGIN}}
+          password: ${{secrets.AZURE_VM_PASSWORD}}
+          script: |
+            curl -o install_docker.sh https://raw.githubusercontent.com/azure-custom-cli/scripts/refs/heads/main/install_docker_ubuntu.sh
+            bash ./install_docker.sh
+            
+            # Installer docker-compose
+            sudo curl -L "https://github.com/docker/compose/releases/download/v2.20.0/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+            sudo chmod +x /usr/local/bin/docker-compose
+          
+      - name: Set DNS Domain for CesiZen
+        uses: azure/CLI@v2
+        with:
+          inlineScript: |
+            # Remplacez par votre zone DNS
+            az network dns record-set a add-record -g CesiZen-DNS -z demo.cesizen.com -n canary -a ${{env.AZURE_VM_IP}}
+
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Update compose file
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{env.AZURE_VM_IP}}
+          port: ${{secrets.PORT}} 
+          username: ${{secrets.AZURE_VM_LOGIN}}
+          password: ${{secrets.AZURE_VM_PASSWORD}}
+          source: "./docker-compose.yaml"
+          target: "."
+
+      - name: Downcase Image Name
+        run: echo "IMAGE_NAME_LOWER=${GITHUB_REPOSITORY,,}" >> ${GITHUB_ENV}
+
+      - name: Deploy CesiZen Application
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{env.AZURE_VM_IP}}
+          port: ${{secrets.PORT}} 
+          username: ${{secrets.AZURE_VM_LOGIN}}
+          password: ${{secrets.AZURE_VM_PASSWORD}}
+          script: |
+            echo ${{secrets.GITHUB_TOKEN}} | docker login ghcr.io -u ${{github.actor}} --password-stdin
+
+            # Configuration pour CesiZen
+            cat > .env << EOF
+            CESIZEN_WEB_IMAGE=ghcr.io/${{env.IMAGE_NAME_LOWER}}:canary
+            DB_NAME=cesizentest
+            DB_USER=cesizen
+            DB_PASS=cesizen123
+            DB_ROOT_PASSWORD=rootpassword
+            WEB_PORT=8000
+            DB_PORT=3306
+            ADMINER_PORT=8080
+            EOF
+
+            # Pull et démarrage
+            docker pull ghcr.io/${{env.IMAGE_NAME_LOWER}}:canary
+            docker-compose up -d
+
+            # Attendre que les services soient prêts
+            sleep 30
+
+            # Vérifier que l'application fonctionne
+            curl -f http://localhost:8000 || exit 1

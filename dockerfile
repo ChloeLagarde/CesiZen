@@ -1,7 +1,7 @@
-# Utilise l'image officielle PHP avec Apache
-FROM php:8.2-apache
+# Multi-stage build pour optimiser l'image de production
+FROM php:8.2-apache AS base
 
-# Installation des extensions PHP couramment utilisées avec WAMP
+# Installation des extensions PHP nécessaires
 RUN apt-get update && apt-get install -y \
     libzip-dev \
     libpng-dev \
@@ -25,34 +25,74 @@ RUN apt-get update && apt-get install -y \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Active le module de réécriture Apache
-RUN a2enmod rewrite
+# Installation de Composer
+COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
-# Configuration Apache pour pointer vers le dossier vues
+# Configuration Apache pour CesiZen
 RUN echo '<VirtualHost *:80>' > /etc/apache2/sites-available/cesizen.conf \
     && echo '    DocumentRoot /var/www/html/vues' >> /etc/apache2/sites-available/cesizen.conf \
     && echo '    <Directory /var/www/html/vues>' >> /etc/apache2/sites-available/cesizen.conf \
     && echo '        AllowOverride All' >> /etc/apache2/sites-available/cesizen.conf \
     && echo '        Require all granted' >> /etc/apache2/sites-available/cesizen.conf \
+    && echo '        DirectoryIndex index.php' >> /etc/apache2/sites-available/cesizen.conf \
+    && echo '    </Directory>' >> /etc/apache2/sites-available/cesizen.conf \
+    && echo '    <Directory /var/www/html/api>' >> /etc/apache2/sites-available/cesizen.conf \
+    && echo '        AllowOverride All' >> /etc/apache2/sites-available/cesizen.conf \
+    && echo '        Require all granted' >> /etc/apache2/sites-available/cesizen.conf \
     && echo '    </Directory>' >> /etc/apache2/sites-available/cesizen.conf \
     && echo '</VirtualHost>' >> /etc/apache2/sites-available/cesizen.conf \
     && a2dissite 000-default \
-    && a2ensite cesizen
+    && a2ensite cesizen \
+    && a2enmod rewrite
 
-# Configuration PHP pour le développement (similaire à WAMP)
-RUN echo "display_errors = On" >> /usr/local/etc/php/conf.d/docker-php-dev.ini \
-    && echo "error_reporting = E_ALL" >> /usr/local/etc/php/conf.d/docker-php-dev.ini \
-    && echo "upload_max_filesize = 64M" >> /usr/local/etc/php/conf.d/docker-php-dev.ini \
-    && echo "post_max_size = 64M" >> /usr/local/etc/php/conf.d/docker-php-dev.ini \
-    && echo "max_execution_time = 300" >> /usr/local/etc/php/conf.d/docker-php-dev.ini \
-    && echo "memory_limit = 256M" >> /usr/local/etc/php/conf.d/docker-php-dev.ini
+# Configuration PHP pour la production
+RUN echo "display_errors = Off" >> /usr/local/etc/php/conf.d/docker-php-prod.ini \
+    && echo "error_reporting = E_ERROR | E_WARNING | E_PARSE" >> /usr/local/etc/php/conf.d/docker-php-prod.ini \
+    && echo "upload_max_filesize = 64M" >> /usr/local/etc/php/conf.d/docker-php-prod.ini \
+    && echo "post_max_size = 64M" >> /usr/local/etc/php/conf.d/docker-php-prod.ini \
+    && echo "max_execution_time = 300" >> /usr/local/etc/php/conf.d/docker-php-prod.ini \
+    && echo "memory_limit = 256M" >> /usr/local/etc/php/conf.d/docker-php-prod.ini \
+    && echo "session.cookie_secure = On" >> /usr/local/etc/php/conf.d/docker-php-prod.ini \
+    && echo "session.cookie_httponly = On" >> /usr/local/etc/php/conf.d/docker-php-prod.ini
 
-# Copie le code source dans le répertoire web d'Apache
+# Stage pour le développement avec Xdebug
+FROM base AS development
+
+RUN pecl install xdebug \
+    && docker-php-ext-enable xdebug \
+    && echo "xdebug.mode=coverage,debug" >> /usr/local/etc/php/conf.d/docker-php-xdebug.ini \
+    && echo "display_errors = On" >> /usr/local/etc/php/conf.d/docker-php-dev.ini \
+    && echo "error_reporting = E_ALL" >> /usr/local/etc/php/conf.d/docker-php-dev.ini
+
+# Stage de production
+FROM base AS production
+
+# Copie du code source
 COPY . /var/www/html/
 
-# Définit les permissions appropriées
-RUN chown -R www-data:www-data /var/www/html \
-    && chmod -R 755 /var/www/html
+# Installation des dépendances Composer (production seulement)
+RUN composer install --no-dev --optimize-autoloader --no-scripts --no-interaction
 
-# Expose le port 80
+# Configuration des permissions
+RUN chown -R www-data:www-data /var/www/html \
+    && chmod -R 755 /var/www/html \
+    && chmod -R 777 /var/www/html/uploads 2>/dev/null || mkdir -p /var/www/html/uploads && chmod -R 777 /var/www/html/uploads
+
+# Suppression des fichiers sensibles et inutiles en production
+RUN rm -rf /var/www/html/.git \
+    && rm -rf /var/www/html/.github \
+    && rm -rf /var/www/html/tests \
+    && rm -f /var/www/html/.gitignore \
+    && rm -f /var/www/html/README.md \
+    && rm -f /var/www/html/docker-compose.yml \
+    && rm -f /var/www/html/phpunit.xml
+
+# Exposition du port
 EXPOSE 80
+
+# Configuration du healthcheck
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost/index.php || exit 1
+
+# Point d'entrée
+CMD ["apache2-foreground"]

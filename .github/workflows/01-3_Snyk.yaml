@@ -1,0 +1,65 @@
+name: 01-3 - Integration - SNYK
+
+on:
+  workflow_call
+
+jobs:
+  Security_PHP:
+    runs-on: ubuntu-latest
+      
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+
+      - name: Install Composer Dependencies
+        run: composer install --no-progress --prefer-dist
+      
+      - name: Run Snyk Test on PHP Dependencies
+        uses: snyk/actions/php@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          command: test
+          args: --severity-threshold=medium --file=./composer.json --org=${{secrets.SNYK_ORG_ID}}
+      
+      - name: Run Snyk Monitor on PHP Dependencies
+        if: always()
+        uses: snyk/actions/php@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          command: monitor
+          args: --severity-threshold=medium --file=./composer.json --org=${{secrets.SNYK_ORG_ID}}
+
+  Security_Docker:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Build Docker Image for Security Scan
+        run: |
+          docker build -t cesizen:security-test .
+      
+      - name: Run Snyk Test on Docker Image
+        uses: snyk/actions/docker@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          command: test
+          image: cesizen:security-test
+          args: --severity-threshold=medium --org=${{secrets.SNYK_ORG_ID}}
+      
+      - name: Run Snyk Monitor on Docker Image
+        if: always()
+        uses: snyk/actions/docker@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          command: monitor
+          image: cesizen:security-test
+          args: --severity-threshold=medium --org=${{secrets.SNYK_ORG_ID}}

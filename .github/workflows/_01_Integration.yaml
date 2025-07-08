@@ -1,0 +1,20 @@
+name: 01 - Integration
+
+on:
+  pull_request:
+    branches:
+      - develop
+
+jobs:
+  Test_PHP:
+    uses: ./.github/workflows/01-1_TestPHP.yaml
+
+  Quality_SonarQube:
+    needs: [Test_PHP]
+    uses: ./.github/workflows/01-2_SonarQube.yaml
+    secrets: inherit
+
+  Security_Snyk:
+    needs: [Quality_SonarQube]
+    uses: ./.github/workflows/01-3_Snyk.yaml
+    secrets: inherit

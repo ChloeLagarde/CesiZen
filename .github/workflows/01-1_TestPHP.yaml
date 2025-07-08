@@ -1,0 +1,96 @@
+name: 01-1 - Integration - TEST PHP
+
+on:
+  workflow_call
+
+jobs:
+  PHP_Tests:
+    runs-on: ubuntu-latest
+        
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: rootpassword
+          MYSQL_DATABASE: cesizentest
+          MYSQL_USER: cesizen
+          MYSQL_PASSWORD: cesizen123
+        ports:
+          - 3306:3306
+        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
+
+    env:
+      DB_HOST: 127.0.0.1
+      DB_NAME: cesizentest
+      DB_USER: cesizen
+      DB_PASS: cesizen123
+      DB_PORT: 3306
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: pdo, pdo_mysql, mysqli, mbstring, zip, exif, pcntl, bcmath, gd
+          coverage: xdebug
+
+      - name: Database Connection Check
+        run: |
+          sudo apt-get install -y mysql-client
+          mysql --host 127.0.0.1 --port 3306 -u root -prootpassword -e "SHOW DATABASES"
+
+      - name: Install Composer Dependencies
+        run: composer install --no-progress --no-suggest --prefer-dist --optimize-autoloader
+
+      - name: Create database tables
+        run: |
+          mysql -u root -prootpassword --host 127.0.0.1 --port 3306 --database cesizentest < "script bdd.sql"
+
+      - name: Run PHPUnit Tests
+        run: |
+          if [ -f phpunit.xml ]; then
+            ./vendor/bin/phpunit --coverage-clover=coverage.xml --coverage-html=coverage
+          else
+            ./vendor/bin/phpunit tests/ --coverage-clover=coverage.xml --coverage-html=coverage
+          fi
+
+      - name: Upload Coverage Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: php-coverage-report
+          path: |
+            coverage.xml
+            coverage/
+          retention-days: 1
+
+  Docker_Build_Test:
+    needs: [PHP_Tests]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Test Docker Build
+        run: |
+          docker-compose -f docker-compose.yml build
+          docker-compose -f docker-compose.yml up -d
+          sleep 30
+          
+      - name: Test Application Health
+        run: |
+          # Test if the application is responding
+          curl -f http://localhost:8000 || exit 1
+          
+      - name: Test Database Connection
+        run: |
+          # Test if we can reach the database
+          docker-compose exec -T cesizen-db mysqladmin ping -h localhost || exit 1
+
+      - name: Clean Docker Environment
+        if: always()
+        run: |
+          docker-compose -f docker-compose.yml down -v
