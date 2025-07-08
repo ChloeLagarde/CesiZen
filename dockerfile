@@ -28,6 +28,17 @@ RUN apt-get update && apt-get install -y \
 # Active le module de réécriture Apache
 RUN a2enmod rewrite
 
+# Configuration Apache pour pointer vers le dossier vues
+RUN echo '<VirtualHost *:80>' > /etc/apache2/sites-available/cesizen.conf \
+    && echo '    DocumentRoot /var/www/html/vues' >> /etc/apache2/sites-available/cesizen.conf \
+    && echo '    <Directory /var/www/html/vues>' >> /etc/apache2/sites-available/cesizen.conf \
+    && echo '        AllowOverride All' >> /etc/apache2/sites-available/cesizen.conf \
+    && echo '        Require all granted' >> /etc/apache2/sites-available/cesizen.conf \
+    && echo '    </Directory>' >> /etc/apache2/sites-available/cesizen.conf \
+    && echo '</VirtualHost>' >> /etc/apache2/sites-available/cesizen.conf \
+    && a2dissite 000-default \
+    && a2ensite cesizen
+
 # Configuration PHP pour le développement (similaire à WAMP)
 RUN echo "display_errors = On" >> /usr/local/etc/php/conf.d/docker-php-dev.ini \
     && echo "error_reporting = E_ALL" >> /usr/local/etc/php/conf.d/docker-php-dev.ini \
