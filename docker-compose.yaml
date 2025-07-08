@@ -1,84 +1,63 @@
 version: '3.8'
 
 services:
-  # Service Web (Apache + PHP)
+  # Service Web (PHP + Apache)
   web:
     build: .
-    container_name: cesizen_web
+    container_name: wamp_web
     ports:
-      - "8080:80"
+      - "80:80"
     volumes:
       - .:/var/www/html
-      - ./config/php.ini:/usr/local/etc/php/conf.d/custom.ini
     depends_on:
-      - db
+      - database
     networks:
-      - cesizen_network
+      - wamp_network
     environment:
-      - DB_HOST=db
-      - DB_NAME=cesizentest
-      - DB_USER=root
-      - DB_PASSWORD=cesizen_password
-    restart: unless-stopped
+      - APACHE_DOCUMENT_ROOT=/var/www/html
 
-  # Service Base de données MySQL
-  db:
+  # Service Base de données (MySQL)
+  database:
     image: mysql:8.0
-    container_name: cesizen_db
+    container_name: wamp_mysql
     ports:
       - "3306:3306"
     environment:
-      MYSQL_ROOT_PASSWORD: cesizen_password
-      MYSQL_DATABASE: cesizentest
-      MYSQL_USER: cesizen_user
-      MYSQL_PASSWORD: cesizen_password
+      # Configuration pour connexion root sans mot de passe
+      MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
+      MYSQL_ROOT_PASSWORD: ""
+      MYSQL_DATABASE: "wamp_db"
     volumes:
-      - db_data:/var/lib/mysql
-      - ./script_bdd.sql:/docker-entrypoint-initdb.d/init.sql
+      # Persiste les données de la base
+      - mysql_data:/var/lib/mysql
+      # Configuration MySQL personnalisée
+      - ./mysql-config:/etc/mysql/conf.d
     networks:
-      - cesizen_network
-    restart: unless-stopped
+      - wamp_network
     command: --default-authentication-plugin=mysql_native_password
 
-  # Service phpMyAdmin pour gestion BDD
+  # PhpMyAdmin (optionnel, pour gérer la base de données)
   phpmyadmin:
-    image: phpmyadmin:latest
-    container_name: cesizen_phpmyadmin
+    image: phpmyadmin/phpmyadmin
+    container_name: wamp_phpmyadmin
     ports:
-      - "8081:80"
+      - "8080:80"
     environment:
-      PMA_HOST: db
-      PMA_PORT: 3306
+      PMA_HOST: database
       PMA_USER: root
-      PMA_PASSWORD: cesizen_password
-      MYSQL_ROOT_PASSWORD: cesizen_password
+      PMA_PASSWORD: ""
+      PMA_ARBITRARY: 1
     depends_on:
-      - db
+      - database
     networks:
-      - cesizen_network
-    restart: unless-stopped
-
-  # Service Redis pour cache (optionnel)
-  redis:
-    image: redis:7-alpine
-    container_name: cesizen_redis
-    ports:
-      - "6379:6379"
-    networks:
-      - cesizen_network
-    restart: unless-stopped
-    command: redis-server --appendonly yes
-    volumes:
-      - redis_data:/data
+      - wamp_network
 
 # Volumes persistants
 volumes:
-  db_data:
-    driver: local
-  redis_data:
+  mysql_data:
     driver: local
 
-# Réseau dédié
+# Réseau pour la communication entre les services
 networks:
-  cesizen_network:
+  wamp_network:
     driver: bridge

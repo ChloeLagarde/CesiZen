@@ -1,0 +1,27 @@
+[mysqld]
+# Configuration pour permettre les connexions sans mot de passe
+skip-grant-tables=0
+bind-address=0.0.0.0
+
+# Configuration pour améliorer les performances en développement
+innodb_buffer_pool_size=128M
+max_connections=200
+query_cache_size=32M
+query_cache_type=1
+
+# Configuration du charset par défaut
+character-set-server=utf8mb4
+collation-server=utf8mb4_unicode_ci
+
+# Logs pour le débogage (optionnel)
+general_log=1
+general_log_file=/var/log/mysql/general.log
+slow_query_log=1
+slow_query_log_file=/var/log/mysql/slow.log
+long_query_time=2
+
+[mysql]
+default-character-set=utf8mb4
+
+[client]
+default-character-set=utf8mb4
