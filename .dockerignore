@@ -1,0 +1,40 @@
+# Fichiers Git
+.git
+.gitignore
+
+# Fichiers Docker
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Logs
+*.log
+
+# Fichiers temporaires
+*.tmp
+*.temp
+
+# Fichiers de cache
+.cache/
+tmp/
+
+# Dossiers de dépendances (si applicable)
+node_modules/
+vendor/
+
+# Fichiers de configuration locale
+.env.local
+.env.development
+config.local.php
+
+# Fichiers de sauvegarde
+*.bak
+*.backup
+
+# Documentation
+README.md
+*.md
+
+# Fichiers système
+.DS_Store
+Thumbs.db
