@@ -1,7 +1,7 @@
-# Multi-stage build pour optimiser l'image de production
-FROM php:8.2-apache AS base
+# Utilise l'image officielle PHP avec Apache
+FROM php:8.2-apache
 
-# Installation des extensions PHP nécessaires
+# Installation des extensions PHP nécessaires pour CesiZen
 RUN apt-get update && apt-get install -y \
     libzip-dev \
     libpng-dev \
@@ -11,6 +11,7 @@ RUN apt-get update && apt-get install -y \
     libxml2-dev \
     unzip \
     git \
+    curl \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install \
     pdo \
@@ -28,71 +29,89 @@ RUN apt-get update && apt-get install -y \
 # Installation de Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
-# Configuration Apache pour CesiZen
+# Active le module de réécriture Apache
+RUN a2enmod rewrite
+
+# Configuration Apache pour CesiZen - DocumentRoot vers le dossier vues
 RUN echo '<VirtualHost *:80>' > /etc/apache2/sites-available/cesizen.conf \
     && echo '    DocumentRoot /var/www/html/vues' >> /etc/apache2/sites-available/cesizen.conf \
+    && echo '    ServerName localhost' >> /etc/apache2/sites-available/cesizen.conf \
+    && echo '' >> /etc/apache2/sites-available/cesizen.conf \
+    && echo '    # Configuration pour le dossier vues (interface utilisateur)' >> /etc/apache2/sites-available/cesizen.conf \
     && echo '    <Directory /var/www/html/vues>' >> /etc/apache2/sites-available/cesizen.conf \
     && echo '        AllowOverride All' >> /etc/apache2/sites-available/cesizen.conf \
     && echo '        Require all granted' >> /etc/apache2/sites-available/cesizen.conf \
     && echo '        DirectoryIndex index.php' >> /etc/apache2/sites-available/cesizen.conf \
+    && echo '        Options Indexes FollowSymLinks' >> /etc/apache2/sites-available/cesizen.conf \
     && echo '    </Directory>' >> /etc/apache2/sites-available/cesizen.conf \
+    && echo '' >> /etc/apache2/sites-available/cesizen.conf \
+    && echo '    # Configuration pour le dossier API' >> /etc/apache2/sites-available/cesizen.conf \
+    && echo '    Alias /api /var/www/html/api' >> /etc/apache2/sites-available/cesizen.conf \
     && echo '    <Directory /var/www/html/api>' >> /etc/apache2/sites-available/cesizen.conf \
     && echo '        AllowOverride All' >> /etc/apache2/sites-available/cesizen.conf \
     && echo '        Require all granted' >> /etc/apache2/sites-available/cesizen.conf \
+    && echo '        DirectoryIndex index.php' >> /etc/apache2/sites-available/cesizen.conf \
     && echo '    </Directory>' >> /etc/apache2/sites-available/cesizen.conf \
+    && echo '' >> /etc/apache2/sites-available/cesizen.conf \
+    && echo '    # Configuration pour les assets (CSS, JS, images)' >> /etc/apache2/sites-available/cesizen.conf \
+    && echo '    Alias /assets /var/www/html/assets' >> /etc/apache2/sites-available/cesizen.conf \
+    && echo '    <Directory /var/www/html/assets>' >> /etc/apache2/sites-available/cesizen.conf \
+    && echo '        AllowOverride All' >> /etc/apache2/sites-available/cesizen.conf \
+    && echo '        Require all granted' >> /etc/apache2/sites-available/cesizen.conf \
+    && echo '    </Directory>' >> /etc/apache2/sites-available/cesizen.conf \
+    && echo '' >> /etc/apache2/sites-available/cesizen.conf \
+    && echo '    # Configuration des logs' >> /etc/apache2/sites-available/cesizen.conf \
+    && echo '    ErrorLog ${APACHE_LOG_DIR}/cesizen_error.log' >> /etc/apache2/sites-available/cesizen.conf \
+    && echo '    CustomLog ${APACHE_LOG_DIR}/cesizen_access.log combined' >> /etc/apache2/sites-available/cesizen.conf \
     && echo '</VirtualHost>' >> /etc/apache2/sites-available/cesizen.conf \
     && a2dissite 000-default \
-    && a2ensite cesizen \
-    && a2enmod rewrite
+    && a2ensite cesizen
 
-# Configuration PHP pour la production
-RUN echo "display_errors = Off" >> /usr/local/etc/php/conf.d/docker-php-prod.ini \
-    && echo "error_reporting = E_ERROR | E_WARNING | E_PARSE" >> /usr/local/etc/php/conf.d/docker-php-prod.ini \
-    && echo "upload_max_filesize = 64M" >> /usr/local/etc/php/conf.d/docker-php-prod.ini \
-    && echo "post_max_size = 64M" >> /usr/local/etc/php/conf.d/docker-php-prod.ini \
-    && echo "max_execution_time = 300" >> /usr/local/etc/php/conf.d/docker-php-prod.ini \
-    && echo "memory_limit = 256M" >> /usr/local/etc/php/conf.d/docker-php-prod.ini \
-    && echo "session.cookie_secure = On" >> /usr/local/etc/php/conf.d/docker-php-prod.ini \
-    && echo "session.cookie_httponly = On" >> /usr/local/etc/php/conf.d/docker-php-prod.ini
+# Configuration PHP optimisée pour CesiZen
+RUN echo "; Configuration PHP pour CesiZen" > /usr/local/etc/php/conf.d/cesizen.ini \
+    && echo "display_errors = On" >> /usr/local/etc/php/conf.d/cesizen.ini \
+    && echo "error_reporting = E_ALL" >> /usr/local/etc/php/conf.d/cesizen.ini \
+    && echo "log_errors = On" >> /usr/local/etc/php/conf.d/cesizen.ini \
+    && echo "upload_max_filesize = 64M" >> /usr/local/etc/php/conf.d/cesizen.ini \
+    && echo "post_max_size = 64M" >> /usr/local/etc/php/conf.d/cesizen.ini \
+    && echo "max_execution_time = 300" >> /usr/local/etc/php/conf.d/cesizen.ini \
+    && echo "memory_limit = 256M" >> /usr/local/etc/php/conf.d/cesizen.ini \
+    && echo "max_input_vars = 3000" >> /usr/local/etc/php/conf.d/cesizen.ini \
+    && echo "session.gc_maxlifetime = 3600" >> /usr/local/etc/php/conf.d/cesizen.ini \
+    && echo "date.timezone = Europe/Paris" >> /usr/local/etc/php/conf.d/cesizen.ini
 
-# Stage pour le développement avec Xdebug
-FROM base AS development
-
-RUN pecl install xdebug \
-    && docker-php-ext-enable xdebug \
-    && echo "xdebug.mode=coverage,debug" >> /usr/local/etc/php/conf.d/docker-php-xdebug.ini \
-    && echo "display_errors = On" >> /usr/local/etc/php/conf.d/docker-php-dev.ini \
-    && echo "error_reporting = E_ALL" >> /usr/local/etc/php/conf.d/docker-php-dev.ini
-
-# Stage de production
-FROM base AS production
-
-# Copie du code source
+# Copie le code source dans le répertoire web d'Apache
 COPY . /var/www/html/
 
-# Installation des dépendances Composer (production seulement)
-RUN composer install --no-dev --optimize-autoloader --no-scripts --no-interaction
+# Installation des dépendances Composer si composer.json existe
+RUN if [ -f /var/www/html/composer.json ]; then \
+        cd /var/www/html && \
+        composer install --optimize-autoloader --no-scripts --no-interaction --no-dev; \
+    fi
 
-# Configuration des permissions
-RUN chown -R www-data:www-data /var/www/html \
+# Création des dossiers nécessaires avec les bonnes permissions
+RUN mkdir -p /var/www/html/uploads \
+    && mkdir -p /var/www/html/logs \
+    && mkdir -p /var/www/html/cache \
+    && chown -R www-data:www-data /var/www/html \
     && chmod -R 755 /var/www/html \
-    && chmod -R 777 /var/www/html/uploads 2>/dev/null || mkdir -p /var/www/html/uploads && chmod -R 777 /var/www/html/uploads
+    && chmod -R 777 /var/www/html/uploads \
+    && chmod -R 777 /var/www/html/logs \
+    && chmod -R 777 /var/www/html/cache
 
-# Suppression des fichiers sensibles et inutiles en production
-RUN rm -rf /var/www/html/.git \
-    && rm -rf /var/www/html/.github \
-    && rm -rf /var/www/html/tests \
-    && rm -f /var/www/html/.gitignore \
-    && rm -f /var/www/html/README.md \
-    && rm -f /var/www/html/docker-compose.yml \
-    && rm -f /var/www/html/phpunit.xml
+# Configuration du healthcheck pour vérifier que l'application fonctionne
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+    CMD curl -f http://localhost/ || exit 1
 
-# Exposition du port
+# Exposition du port 80
 EXPOSE 80
 
-# Configuration du healthcheck
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost/index.php || exit 1
+# Variables d'environnement par défaut
+ENV APACHE_DOCUMENT_ROOT=/var/www/html/vues
+ENV DB_HOST=database
+ENV DB_NAME=cesizentest
+ENV DB_USER=cesizen
+ENV DB_PASS=cesizen123
 
 # Point d'entrée
 CMD ["apache2-foreground"]
