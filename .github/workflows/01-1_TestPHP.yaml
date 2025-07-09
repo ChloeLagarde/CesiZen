@@ -52,9 +52,9 @@ jobs:
       - name: Run PHPUnit Tests
         run: |
           if [ -f phpunit.xml ]; then
-            ./vendor/bin/phpunit --coverage-clover=coverage.xml --coverage-html=coverage
+            php vendor/bin/phpunit --coverage-clover=coverage.xml --coverage-html=coverage
           else
-            ./vendor/bin/phpunit tests/ --coverage-clover=coverage.xml --coverage-html=coverage
+            php vendor/bin/phpunit tests/ --coverage-clover=coverage.xml --coverage-html=coverage
           fi
 
       - name: Upload Coverage Artifact
@@ -88,7 +88,7 @@ jobs:
       - name: Test Database Connection
         run: |
           # Test if we can reach the database
-          docker-compose exec -T cesizen-db mysqladmin ping -h localhost || exit 1
+          docker-compose exec -T database mysqladmin ping -h localhost || exit 1
 
       - name: Clean Docker Environment
         if: always()
