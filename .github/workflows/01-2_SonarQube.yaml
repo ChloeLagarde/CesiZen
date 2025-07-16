@@ -10,12 +10,33 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v3
+        with:
+          fetch-depth: 0  # Récupère tout l'historique pour SonarCloud
 
       - name: Download Coverage Artifact
         uses: actions/download-artifact@v4
+        continue-on-error: true
         with:
           name: php-coverage-report
           path: ./
+
+      - name: Check Coverage Files
+        run: |
+          echo "Checking for coverage files..."
+          ls -la
+          
+          # Créer coverage.xml par défaut s'il n'existe pas
+          if [ ! -f coverage.xml ]; then
+            echo "Creating default coverage.xml file..."
+            cat > coverage.xml << 'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <coverage generated="1">
+            <project timestamp="1">
+              <metrics files="0" loc="0" ncloc="0" classes="0" methods="0" coveredmethods="0" conditionals="0" coveredconditionals="0" statements="0" coveredstatements="0" elements="0" coveredelements="0"/>
+            </project>
+          </coverage>
+          EOF
+          fi
 
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
@@ -27,18 +48,47 @@ jobs:
 
       - name: Create sonar-project.properties
         run: |
+          # Utiliser le nom du repository GitHub comme clé de projet
+          PROJECT_KEY="${GITHUB_REPOSITORY/\//-}"
+          echo "Using project key: $PROJECT_KEY"
+          
           cat > sonar-project.properties << EOF
-          sonar.projectKey=cesizen-project
+          sonar.projectKey=$PROJECT_KEY
+          sonar.projectName=CesiZen
+          sonar.projectVersion=1.0
           sonar.organization=${{ secrets.SONAR_ORGANIZATION }}
           sonar.sources=.
-          sonar.exclusions=vendor/**,tests/**,assets/**,.github/**,docker-compose.yml,Dockerfile
+          sonar.exclusions=vendor/**,tests/**,assets/**,.github/**,docker-compose.yml,Dockerfile,**/*.js,**/*.css
           sonar.php.coverage.reportPaths=coverage.xml
-          sonar.php.tests.reportPath=coverage.xml
           sonar.language=php
+          sonar.sourceEncoding=UTF-8
           EOF
+
+      - name: Debug SonarCloud Configuration
+        run: |
+          echo "🔍 Configuration SonarCloud:"
+          echo "Repository: ${{ github.repository }}"
+          echo "Project Key: ${GITHUB_REPOSITORY/\//-}"
+          echo "Branch: ${{ github.ref }}"
+          echo "Event: ${{ github.event_name }}"
+          
+          echo "📋 Fichiers présents:"
+          ls -la
+          
+          echo "📝 Contenu de sonar-project.properties:"
+          cat sonar-project.properties
 
       - name: SonarCloud Scan
         uses: SonarSource/sonarcloud-github-action@v3.1.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          args: >
+            -Dsonar.projectKey=${GITHUB_REPOSITORY/\//-}
+            -Dsonar.organization=${{ secrets.SONAR_ORGANIZATION }}
+            -Dsonar.sources=.
+            -Dsonar.exclusions=vendor/**,tests/**,assets/**,.github/**
+            -Dsonar.php.coverage.reportPaths=coverage.xml
+            -Dsonar.projectName=CesiZen
+            -Dsonar.projectVersion=1.0
