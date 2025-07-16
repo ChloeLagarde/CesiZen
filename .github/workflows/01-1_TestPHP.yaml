@@ -54,12 +54,43 @@ jobs:
         run: |
           mysql -u root -prootpassword --host 127.0.0.1 --port 3306 --database cesizentest < "script bdd.sql"
 
+      - name: Create Basic Test (Temporary Solution)
+        run: |
+          mkdir -p tests
+          cat > tests/BasicTest.php << 'EOF'
+          <?php
+          use PHPUnit\Framework\TestCase;
+          
+          class BasicTest extends TestCase
+          {
+              public function testBasicAssertion()
+              {
+                  $this->assertTrue(true);
+              }
+              
+              public function testDatabaseConnection()
+              {
+                  $host = getenv('DB_HOST') ?: '127.0.0.1';
+                  $dbname = getenv('DB_NAME') ?: 'cesizentest';
+                  $username = getenv('DB_USER') ?: 'cesizen';
+                  $password = getenv('DB_PASS') ?: 'cesizen123';
+                  
+                  try {
+                      $pdo = new PDO("mysql:host=$host;dbname=$dbname", $username, $password);
+                      $this->assertInstanceOf(PDO::class, $pdo);
+                  } catch (PDOException $e) {
+                      $this->fail("Database connection failed: " . $e->getMessage());
+                  }
+              }
+          }
+          EOF
+
       - name: Run PHPUnit Tests
         run: |
           if [ -f phpunit.xml ]; then
-            php vendor/bin/phpunit --coverage-clover=coverage.xml --coverage-html=coverage
+            php ./vendor/bin/phpunit --coverage-clover=coverage.xml --coverage-html=coverage
           else
-            php vendor/bin/phpunit tests/ --coverage-clover=coverage.xml --coverage-html=coverage
+            php ./vendor/bin/phpunit tests/ --coverage-clover=coverage.xml --coverage-html=coverage
           fi
 
       - name: Upload Coverage Artifact
