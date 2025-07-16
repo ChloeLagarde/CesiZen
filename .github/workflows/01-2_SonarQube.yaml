@@ -46,70 +46,34 @@ jobs:
       - name: Install Composer Dependencies
         run: composer install --no-progress --prefer-dist
 
-      - name: Calculate Project Key
-        run: |
-          # Calculer la clé de projet correctement
-          PROJECT_KEY=$(echo "${{ github.repository }}" | sed 's/\//-/g')
-          echo "PROJECT_KEY=$PROJECT_KEY" >> $GITHUB_ENV
-          echo "Using project key: $PROJECT_KEY"
-
-      - name: Check if SonarCloud Project Exists
-        continue-on-error: true
-        run: |
-          echo "🔍 Vérification de l'existence du projet SonarCloud..."
-          
-          # Tenter de récupérer les informations du projet
-          response=$(curl -s -u "${{ secrets.SONAR_TOKEN }}:" \
-            "https://sonarcloud.io/api/projects/search?projects=${{ env.PROJECT_KEY }}")
-          
-          if echo "$response" | grep -q '"total":0'; then
-            echo "❌ Projet non trouvé sur SonarCloud"
-            echo "PROJECT_EXISTS=false" >> $GITHUB_ENV
-          else
-            echo "✅ Projet trouvé sur SonarCloud"
-            echo "PROJECT_EXISTS=true" >> $GITHUB_ENV
-          fi
-
-      - name: Create SonarCloud Project (if not exists)
-        if: env.PROJECT_EXISTS == 'false'
-        continue-on-error: true
-        run: |
-          echo "🔧 Création du projet SonarCloud..."
-          
-          curl -X POST \
-            -u "${{ secrets.SONAR_TOKEN }}:" \
-            -d "project=${{ env.PROJECT_KEY }}" \
-            -d "name=CesiZen" \
-            -d "organization=${{ secrets.SONAR_ORGANIZATION }}" \
-            -d "mainBranch=develop" \
-            "https://sonarcloud.io/api/projects/create"
-          
-          echo "✅ Tentative de création du projet terminée"
-
       - name: Create sonar-project.properties
         run: |
+          # Utiliser le nom du repository GitHub comme clé de projet
+          PROJECT_KEY="${GITHUB_REPOSITORY/\//-}"
+          echo "Using project key: $PROJECT_KEY"
+          
           cat > sonar-project.properties << EOF
-          sonar.projectKey=${{ env.PROJECT_KEY }}
+          sonar.projectKey=$PROJECT_KEY
           sonar.projectName=CesiZen
           sonar.projectVersion=1.0
           sonar.organization=${{ secrets.SONAR_ORGANIZATION }}
-          sonar.sources=controleur,config,vues
+          sonar.sources=.
           sonar.exclusions=vendor/**,tests/**,assets/**,.github/**,docker-compose.yml,Dockerfile,**/*.js,**/*.css
           sonar.php.coverage.reportPaths=coverage.xml
           sonar.language=php
           sonar.sourceEncoding=UTF-8
-          sonar.scm.provider=git
           EOF
 
       - name: Debug SonarCloud Configuration
         run: |
           echo "🔍 Configuration SonarCloud:"
           echo "Repository: ${{ github.repository }}"
-          echo "Project Key: ${{ env.PROJECT_KEY }}"
-          echo "Organization: ${{ secrets.SONAR_ORGANIZATION }}"
-          echo "Project Exists: ${{ env.PROJECT_EXISTS }}"
+          echo "Project Key: ${GITHUB_REPOSITORY/\//-}"
           echo "Branch: ${{ github.ref }}"
           echo "Event: ${{ github.event_name }}"
+          
+          echo "📋 Fichiers présents:"
+          ls -la
           
           echo "📝 Contenu de sonar-project.properties:"
           cat sonar-project.properties
@@ -121,17 +85,10 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         with:
           args: >
-            -Dsonar.projectKey=${{ env.PROJECT_KEY }}
+            -Dsonar.projectKey=${GITHUB_REPOSITORY/\//-}
             -Dsonar.organization=${{ secrets.SONAR_ORGANIZATION }}
-            -Dsonar.projectName=CesiZen
-            -Dsonar.projectVersion=1.0
-            -Dsonar.sources=controleur,config,vues
+            -Dsonar.sources=.
             -Dsonar.exclusions=vendor/**,tests/**,assets/**,.github/**
             -Dsonar.php.coverage.reportPaths=coverage.xml
-            -Dsonar.sourceEncoding=UTF-8
-
-      - name: Upload SonarCloud Results
-        if: always()
-        run: |
-          echo "📊 Analyse SonarCloud terminée"
-          echo "🔗 Consultez les résultats sur : https://sonarcloud.io/project/overview?id=${{ env.PROJECT_KEY }}"
+            -Dsonar.projectName=CesiZen
+            -Dsonar.projectVersion=1.0
