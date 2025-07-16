@@ -2,56 +2,60 @@ version: '3.8'
 
 services:
   # Service Web (PHP + Apache)
-  web:
-    build: .
-    container_name: wamp_web
+  cesizen-web:
+    build: 
+      context: .
+      target: production
+    container_name: cesizen-web
     ports:
-      - "8000:80"  # Port 8000 au lieu de 80 pour éviter les conflits
+      - "${WEB_PORT:-8000}:80"
     volumes:
       - .:/var/www/html
     depends_on:
-      - database
+      - cesizen-db
     networks:
-      - wamp_network
+      - cesizen_network
     environment:
       - APACHE_DOCUMENT_ROOT=/var/www/html
+      - DB_HOST=cesizen-db
+      - DB_NAME=${DB_NAME:-cesizentest}
+      - DB_USER=${DB_USER:-cesizen}
+      - DB_PASS=${DB_PASS:-cesizen123}
+      - DB_PORT=3306
+    restart: unless-stopped
 
-  # Service Base de données (MySQL) - CONTENEUR SÉPARÉ
-  database:
+  # Service Base de données (MySQL)
+  cesizen-db:
     image: mysql:8.0
-    container_name: wamp_mysql
+    container_name: cesizen-db
     ports:
-      - "3306:3306"  # Optionnel : pour accès externe
+      - "${DB_PORT:-3306}:3306"
     environment:
-      # Configuration pour connexion root sans mot de passe
-      MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
-      MYSQL_ROOT_PASSWORD: ""
-      MYSQL_DATABASE: "wamp_db"
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-rootpassword}
+      MYSQL_DATABASE: ${DB_NAME:-cesizentest}
+      MYSQL_USER: ${DB_USER:-cesizen}
+      MYSQL_PASSWORD: ${DB_PASS:-cesizen123}
     volumes:
-      # Persiste les données de la base de données Docker
       - mysql_data:/var/lib/mysql
-      # Configuration MySQL personnalisée
-      - ./mysql-config:/etc/mysql/conf.d
+      - ./script\ bdd.sql:/docker-entrypoint-initdb.d/init.sql
     networks:
-      - wamp_network  # Communication avec conteneur web
+      - cesizen_network
     command: --default-authentication-plugin=mysql_native_password
     restart: unless-stopped
 
   # PhpMyAdmin (optionnel, pour gérer la base de données)
-  phpmyadmin:
-    image: phpmyadmin/phpmyadmin
-    container_name: wamp_phpmyadmin
+  adminer:
+    image: adminer
+    container_name: cesizen-adminer
     ports:
-      - "8080:80"
+      - "${ADMINER_PORT:-8080}:8080"
     environment:
-      PMA_HOST: database
-      PMA_USER: root
-      PMA_PASSWORD: ""
-      PMA_ARBITRARY: 1
+      ADMINER_DEFAULT_SERVER: cesizen-db
     depends_on:
-      - database
+      - cesizen-db
     networks:
-      - wamp_network
+      - cesizen_network
+    restart: unless-stopped
 
 # Volumes persistants
 volumes:
@@ -60,5 +64,5 @@ volumes:
 
 # Réseau pour la communication entre les services
 networks:
-  wamp_network:
+  cesizen_network:
     driver: bridge

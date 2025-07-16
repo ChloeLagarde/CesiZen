@@ -49,12 +49,15 @@ jobs:
         run: |
           mysql -u root -prootpassword --host 127.0.0.1 --port 3306 --database cesizentest < "script bdd.sql"
 
+      - name: Create tests directory if not exists
+        run: mkdir -p tests
+
       - name: Run PHPUnit Tests
         run: |
           if [ -f phpunit.xml ]; then
-            php vendor/bin/phpunit --coverage-clover=coverage.xml --coverage-html=coverage
+            ./vendor/bin/phpunit --coverage-clover=coverage.xml --coverage-html=coverage
           else
-            php vendor/bin/phpunit tests/ --coverage-clover=coverage.xml --coverage-html=coverage
+            ./vendor/bin/phpunit tests/ --coverage-clover=coverage.xml --coverage-html=coverage
           fi
 
       - name: Upload Coverage Artifact
