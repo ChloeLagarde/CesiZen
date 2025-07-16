@@ -53,6 +53,39 @@ jobs:
           echo "PROJECT_KEY=$PROJECT_KEY" >> $GITHUB_ENV
           echo "Using project key: $PROJECT_KEY"
 
+      - name: Check if SonarCloud Project Exists
+        continue-on-error: true
+        run: |
+          echo "🔍 Vérification de l'existence du projet SonarCloud..."
+          
+          # Tenter de récupérer les informations du projet
+          response=$(curl -s -u "${{ secrets.SONAR_TOKEN }}:" \
+            "https://sonarcloud.io/api/projects/search?projects=${{ env.PROJECT_KEY }}")
+          
+          if echo "$response" | grep -q '"total":0'; then
+            echo "❌ Projet non trouvé sur SonarCloud"
+            echo "PROJECT_EXISTS=false" >> $GITHUB_ENV
+          else
+            echo "✅ Projet trouvé sur SonarCloud"
+            echo "PROJECT_EXISTS=true" >> $GITHUB_ENV
+          fi
+
+      - name: Create SonarCloud Project (if not exists)
+        if: env.PROJECT_EXISTS == 'false'
+        continue-on-error: true
+        run: |
+          echo "🔧 Création du projet SonarCloud..."
+          
+          curl -X POST \
+            -u "${{ secrets.SONAR_TOKEN }}:" \
+            -d "project=${{ env.PROJECT_KEY }}" \
+            -d "name=CesiZen" \
+            -d "organization=${{ secrets.SONAR_ORGANIZATION }}" \
+            -d "mainBranch=develop" \
+            "https://sonarcloud.io/api/projects/create"
+          
+          echo "✅ Tentative de création du projet terminée"
+
       - name: Create sonar-project.properties
         run: |
           cat > sonar-project.properties << EOF
@@ -74,18 +107,12 @@ jobs:
           echo "Repository: ${{ github.repository }}"
           echo "Project Key: ${{ env.PROJECT_KEY }}"
           echo "Organization: ${{ secrets.SONAR_ORGANIZATION }}"
+          echo "Project Exists: ${{ env.PROJECT_EXISTS }}"
           echo "Branch: ${{ github.ref }}"
           echo "Event: ${{ github.event_name }}"
           
-          echo "📋 Fichiers présents:"
-          ls -la
-          
           echo "📝 Contenu de sonar-project.properties:"
           cat sonar-project.properties
-          
-          echo "🔍 Variables d'environnement SonarCloud:"
-          echo "SONAR_TOKEN set: ${{ secrets.SONAR_TOKEN != '' }}"
-          echo "SONAR_ORGANIZATION set: ${{ secrets.SONAR_ORGANIZATION != '' }}"
 
       - name: SonarCloud Scan
         uses: SonarSource/sonarcloud-github-action@v3.1.0
@@ -102,3 +129,9 @@ jobs:
             -Dsonar.exclusions=vendor/**,tests/**,assets/**,.github/**
             -Dsonar.php.coverage.reportPaths=coverage.xml
             -Dsonar.sourceEncoding=UTF-8
+
+      - name: Upload SonarCloud Results
+        if: always()
+        run: |
+          echo "📊 Analyse SonarCloud terminée"
+          echo "🔗 Consultez les résultats sur : https://sonarcloud.io/project/overview?id=${{ env.PROJECT_KEY }}"
