@@ -1,14 +1,16 @@
-<?
-// GestionRespirationTest.php
+<?php
+// tests/GestionRespirationTest.php
 use PHPUnit\Framework\TestCase;
 
-require_once __DIR__ . './controleur/gestionRespiration.php';
+require_once __DIR__ . '/../controleur/gestionRespiration.php';
 
 class GestionRespirationTest extends TestCase
 {
-    public function testStartRespiration()
+    public function testGetExercices()
     {
-        $result = startRespiration(5); // start 5 min session
-        $this->assertTrue($result);
+        $gestionRespiration = new GestionRespiration();
+        $result = $gestionRespiration->getExercices();
+        $this->assertIsArray($result);
+        $this->assertNotEmpty($result);
     }
 }

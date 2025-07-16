@@ -3,7 +3,7 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-require_once '../config/database.php';
+require_once __DIR__ . '/../config/database.php';
 
 $db = (new Database())->getConnection();
 
@@ -50,7 +50,7 @@ function ajouterUtilisateur($db) {
         if ($result) {
             header("Location: ../vues/vueGestionUser.php?message=success&type=add");
         } else {
-            header(header: "Location: ../vues/ajoutUser.php?error=db_error&username=" . urlencode($username) . 
+            header("Location: ../vues/ajoutUser.php?error=db_error&username=" . urlencode($username) . 
                 "&prenom=" . urlencode($prenom) . "&nom=" . urlencode($nom) . 
                 "&email=" . urlencode($email) . "&tel=" . urlencode($tel) . 
                 "&adresse=" . urlencode($adresse) . "&role=" . urlencode($role));
