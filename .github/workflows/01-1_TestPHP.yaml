@@ -63,8 +63,27 @@ jobs:
             ./vendor/bin/phpunit tests/ --coverage-clover=coverage.xml --coverage-html=coverage
           fi
 
+      - name: Create coverage files if missing
+        run: |
+          # Créer les fichiers de couverture s'ils n'existent pas
+          if [ ! -f coverage.xml ]; then
+            echo '<?xml version="1.0" encoding="UTF-8"?>' > coverage.xml
+            echo '<coverage generated="1">' >> coverage.xml
+            echo '  <project timestamp="1">' >> coverage.xml
+            echo '    <metrics files="0" loc="0" ncloc="0" classes="0" methods="0" coveredmethods="0" conditionals="0" coveredconditionals="0" statements="0" coveredstatements="0" elements="0" coveredelements="0"/>' >> coverage.xml
+            echo '  </project>' >> coverage.xml
+            echo '</coverage>' >> coverage.xml
+          fi
+          
+          # Créer le dossier coverage s'il n'existe pas
+          if [ ! -d coverage ]; then
+            mkdir -p coverage
+            echo '<html><body><h1>Coverage Report</h1><p>No coverage data available</p></body></html>' > coverage/index.html
+          fi
+
       - name: Upload Coverage Artifact
         uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: php-coverage-report
           path: |
