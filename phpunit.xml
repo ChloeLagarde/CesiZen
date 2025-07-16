@@ -33,6 +33,7 @@
             <directory>./assets</directory>
             <file>./vues/header.php</file>
             <file>./vues/composants/footer.php</file>
+            <file>./config/database_docker.php</file>
         </exclude>
     </coverage>
 

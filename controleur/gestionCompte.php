@@ -94,7 +94,7 @@ function changerMotDePasse($db) {
 }
 
 // Dispatcher des actions
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
+if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     switch ($_POST['action']) {
         case 'modifier_compte':
             modifierCompte($db);
