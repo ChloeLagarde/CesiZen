@@ -1,9 +1,10 @@
 name: 01 - Integration
 
 on:
+  push:
+    branches: [ "main", "feature/*" ]
   pull_request:
-    branches:
-      - develop
+    branches: [ "main" ]
 
 jobs:
   Test_PHP:
