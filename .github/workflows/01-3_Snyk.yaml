@@ -17,6 +17,35 @@ jobs:
 
       - name: Install Composer Dependencies
         run: composer install --no-progress --prefer-dist
+
+        - name: Debug - Check Files
+        run: |
+          echo "📁 Fichiers à la racine:"
+          ls -la
+          
+          echo "📄 Vérification composer.json:"
+          if [ -f composer.json ]; then
+            echo "✅ composer.json existe"
+            echo "Contenu (premiers 20 lignes):"
+            head -20 composer.json
+          else
+            echo "❌ composer.json manquant"
+          fi
+          
+          echo "📄 Vérification composer.lock:"
+          if [ -f composer.lock ]; then
+            echo "✅ composer.lock existe"
+          else
+            echo "❌ composer.lock manquant"
+          fi
+          
+          echo "📁 Vérification vendor:"
+          if [ -d vendor ]; then
+            echo "✅ dossier vendor existe"
+            ls -la vendor/ | head -5
+          else
+            echo "❌ dossier vendor manquant"
+          fi
       
       - name: Run Snyk Test on PHP Dependencies
         uses: snyk/actions/php@master
