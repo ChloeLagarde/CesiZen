@@ -96,7 +96,7 @@ jobs:
         with:
           args: >
             -Dsonar.projectKey=ChloeLagarde_CesiZen
-            -Dsonar.organization=ChloeLagarde
+            -Dsonar.organization=cesizen
             -Dsonar.projectName=CesiZen
             -Dsonar.projectVersion=1.0
             -Dsonar.sources=controleur,config,vues,api
