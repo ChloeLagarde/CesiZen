@@ -46,11 +46,14 @@ jobs:
       - name: Install Composer Dependencies
         run: composer install --no-progress --prefer-dist
 
-      - name: Calculate Project Key
+      - name: Calculate Project Key and Organization
         run: |
           PROJECT_KEY="ChloeLagarde_CesiZen"
+          ORGANIZATION="ChloeLagarde"
           echo "PROJECT_KEY=$PROJECT_KEY" >> $GITHUB_ENV
+          echo "ORGANIZATION=$ORGANIZATION" >> $GITHUB_ENV
           echo "Using project key: $PROJECT_KEY"
+          echo "Using organization: $ORGANIZATION"
 
       - name: Debug SonarCloud Configuration
         run: |
