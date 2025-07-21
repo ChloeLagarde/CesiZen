@@ -21,7 +21,7 @@ services:
     image: mysql:8.0
     container_name: wamp_mysql
     ports:
-      - "3306:3306"  # Optionnel : pour accès externe
+      - "3304:3306"  # Optionnel : pour accès externe
     environment:
       # Configuration pour connexion root sans mot de passe
       MYSQL_ALLOW_EMPTY_PASSWORD: "yes"

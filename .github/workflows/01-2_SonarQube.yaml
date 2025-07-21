@@ -48,7 +48,7 @@ jobs:
 
       - name: Calculate Project Key
         run: |
-          PROJECT_KEY="ChloeLagarde-CesiZen"  # Clé exacte de votre projet
+          PROJECT_KEY="ChloeLagarde_CesiZen"  # Clé exacte de votre projet
           echo "PROJECT_KEY=$PROJECT_KEY" >> $GITHUB_ENV
           echo "Using project key: $PROJECT_KEY"
 
