@@ -32,40 +32,32 @@ COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 # Active le module de réécriture Apache
 RUN a2enmod rewrite
 
-# Configuration Apache pour CesiZen - DocumentRoot vers le dossier vues
-RUN echo '<VirtualHost *:80>' > /etc/apache2/sites-available/cesizen.conf \
-    && echo '    DocumentRoot /var/www/html/vues' >> /etc/apache2/sites-available/cesizen.conf \
-    && echo '    ServerName localhost' >> /etc/apache2/sites-available/cesizen.conf \
-    && echo '' >> /etc/apache2/sites-available/cesizen.conf \
-    && echo '    # Configuration pour le dossier vues (interface utilisateur)' >> /etc/apache2/sites-available/cesizen.conf \
-    && echo '    <Directory /var/www/html/vues>' >> /etc/apache2/sites-available/cesizen.conf \
-    && echo '        AllowOverride All' >> /etc/apache2/sites-available/cesizen.conf \
-    && echo '        Require all granted' >> /etc/apache2/sites-available/cesizen.conf \
-    && echo '        DirectoryIndex index.php' >> /etc/apache2/sites-available/cesizen.conf \
-    && echo '        Options Indexes FollowSymLinks' >> /etc/apache2/sites-available/cesizen.conf \
-    && echo '    </Directory>' >> /etc/apache2/sites-available/cesizen.conf \
-    && echo '' >> /etc/apache2/sites-available/cesizen.conf \
-    && echo '    # Configuration pour le dossier API' >> /etc/apache2/sites-available/cesizen.conf \
-    && echo '    Alias /api /var/www/html/api' >> /etc/apache2/sites-available/cesizen.conf \
-    && echo '    <Directory /var/www/html/api>' >> /etc/apache2/sites-available/cesizen.conf \
-    && echo '        AllowOverride All' >> /etc/apache2/sites-available/cesizen.conf \
-    && echo '        Require all granted' >> /etc/apache2/sites-available/cesizen.conf \
-    && echo '        DirectoryIndex index.php' >> /etc/apache2/sites-available/cesizen.conf \
-    && echo '    </Directory>' >> /etc/apache2/sites-available/cesizen.conf \
-    && echo '' >> /etc/apache2/sites-available/cesizen.conf \
-    && echo '    # Configuration pour les assets (CSS, JS, images)' >> /etc/apache2/sites-available/cesizen.conf \
-    && echo '    Alias /assets /var/www/html/assets' >> /etc/apache2/sites-available/cesizen.conf \
-    && echo '    <Directory /var/www/html/assets>' >> /etc/apache2/sites-available/cesizen.conf \
-    && echo '        AllowOverride All' >> /etc/apache2/sites-available/cesizen.conf \
-    && echo '        Require all granted' >> /etc/apache2/sites-available/cesizen.conf \
-    && echo '    </Directory>' >> /etc/apache2/sites-available/cesizen.conf \
-    && echo '' >> /etc/apache2/sites-available/cesizen.conf \
-    && echo '    # Configuration des logs' >> /etc/apache2/sites-available/cesizen.conf \
-    && echo '    ErrorLog ${APACHE_LOG_DIR}/cesizen_error.log' >> /etc/apache2/sites-available/cesizen.conf \
-    && echo '    CustomLog ${APACHE_LOG_DIR}/cesizen_access.log combined' >> /etc/apache2/sites-available/cesizen.conf \
-    && echo '</VirtualHost>' >> /etc/apache2/sites-available/cesizen.conf \
-    && a2dissite 000-default \
-    && a2ensite cesizen
+# Copie le code source dans le répertoire web d'Apache
+COPY . /var/www/html/
+
+# Configuration Apache - MÉTHODE SIMPLIFIÉE
+RUN echo '<VirtualHost *:80>' > /etc/apache2/sites-available/000-default.conf \
+    && echo '    DocumentRoot /var/www/html/vues' >> /etc/apache2/sites-available/000-default.conf \
+    && echo '    ServerName localhost' >> /etc/apache2/sites-available/000-default.conf \
+    && echo '    <Directory /var/www/html/vues>' >> /etc/apache2/sites-available/000-default.conf \
+    && echo '        AllowOverride All' >> /etc/apache2/sites-available/000-default.conf \
+    && echo '        Require all granted' >> /etc/apache2/sites-available/000-default.conf \
+    && echo '        DirectoryIndex index.php' >> /etc/apache2/sites-available/000-default.conf \
+    && echo '        Options Indexes FollowSymLinks' >> /etc/apache2/sites-available/000-default.conf \
+    && echo '    </Directory>' >> /etc/apache2/sites-available/000-default.conf \
+    && echo '    Alias /api /var/www/html/api' >> /etc/apache2/sites-available/000-default.conf \
+    && echo '    <Directory /var/www/html/api>' >> /etc/apache2/sites-available/000-default.conf \
+    && echo '        AllowOverride All' >> /etc/apache2/sites-available/000-default.conf \
+    && echo '        Require all granted' >> /etc/apache2/sites-available/000-default.conf \
+    && echo '    </Directory>' >> /etc/apache2/sites-available/000-default.conf \
+    && echo '    Alias /assets /var/www/html/assets' >> /etc/apache2/sites-available/000-default.conf \
+    && echo '    <Directory /var/www/html/assets>' >> /etc/apache2/sites-available/000-default.conf \
+    && echo '        AllowOverride All' >> /etc/apache2/sites-available/000-default.conf \
+    && echo '        Require all granted' >> /etc/apache2/sites-available/000-default.conf \
+    && echo '    </Directory>' >> /etc/apache2/sites-available/000-default.conf \
+    && echo '    ErrorLog ${APACHE_LOG_DIR}/error.log' >> /etc/apache2/sites-available/000-default.conf \
+    && echo '    CustomLog ${APACHE_LOG_DIR}/access.log combined' >> /etc/apache2/sites-available/000-default.conf \
+    && echo '</VirtualHost>' >> /etc/apache2/sites-available/000-default.conf
 
 # Configuration PHP optimisée pour CesiZen
 RUN echo "; Configuration PHP pour CesiZen" > /usr/local/etc/php/conf.d/cesizen.ini \
@@ -79,9 +71,6 @@ RUN echo "; Configuration PHP pour CesiZen" > /usr/local/etc/php/conf.d/cesizen.
     && echo "max_input_vars = 3000" >> /usr/local/etc/php/conf.d/cesizen.ini \
     && echo "session.gc_maxlifetime = 3600" >> /usr/local/etc/php/conf.d/cesizen.ini \
     && echo "date.timezone = Europe/Paris" >> /usr/local/etc/php/conf.d/cesizen.ini
-
-# Copie le code source dans le répertoire web d'Apache
-COPY . /var/www/html/
 
 # Installation des dépendances Composer si composer.json existe
 RUN if [ -f /var/www/html/composer.json ]; then \
@@ -107,7 +96,6 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
 EXPOSE 80
 
 # Variables d'environnement par défaut
-ENV APACHE_DOCUMENT_ROOT=/var/www/html/vues
 ENV DB_HOST=database
 ENV DB_NAME=cesizentest
 ENV DB_USER=cesizen
