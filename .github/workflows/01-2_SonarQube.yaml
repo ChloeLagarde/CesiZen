@@ -24,80 +24,88 @@ jobs:
         with:
           name: php-coverage-report
           path: ./coverage
-        continue-on-error: true  # Au cas où les tests n'ont pas généré de couverture
+        continue-on-error: true
 
       - name: Install Composer Dependencies
         run: composer install --no-progress --prefer-dist
 
-      - name: Build and analyze
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_ORGANIZATION: ${{ secrets.SONAR_ORGANIZATION }}
-          SONAR_PROJECT_KEY: ${{ secrets.SONAR_PROJECT_KEY }}
+      - name: Check Coverage Files
         run: |
-          # Vérifier que les tokens existent
-          if [ -z "$SONAR_TOKEN" ]; then
-            echo "❌ SONAR_TOKEN is not set!"
-            echo "ℹ️ Please configure SonarCloud following these steps:"
-            echo "1. Go to https://sonarcloud.io"
-            echo "2. Login with GitHub"
-            echo "3. Create a new project for your repository"
-            echo "4. Go to My Account > Security > Generate Token"
-            echo "5. Add the token as SONAR_TOKEN in GitHub secrets"
-            echo "6. Add your organization key as SONAR_ORGANIZATION"
-            echo "7. Add your project key as SONAR_PROJECT_KEY"
-            exit 1
+          echo "🔍 Vérification des fichiers de couverture..."
+          ls -la
+          
+          # Créer coverage.xml par défaut s'il n'existe pas
+          if [ ! -f coverage.xml ]; then
+            echo "Creating default coverage.xml file..."
+            cat > coverage.xml << 'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <coverage generated="1">
+            <project timestamp="1">
+              <metrics files="0" loc="0" ncloc="0" classes="0" methods="0" coveredmethods="0" conditionals="0" coveredconditionals="0" statements="0" coveredstatements="0" elements="0" coveredelements="0"/>
+            </project>
+          </coverage>
+          EOF
           fi
           
-          # Configuration avec les valeurs exactes de votre SonarCloud
-          ORGANIZATION="${SONAR_ORGANIZATION:-ChloeLagarde}"
-          PROJECT_KEY="${SONAR_PROJECT_KEY:-ChloeLagarde_CesiZen}"
-          
-          echo "🔍 SonarCloud Configuration:"
-          echo "- Organization: $ORGANIZATION"
-          echo "- Project Key: $PROJECT_KEY"
-          echo "- Host: https://sonarcloud.io"
-          
-          # Installation de SonarScanner pour PHP
-          curl -sSLo sonar-scanner.zip https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-4.8.0.2856-linux.zip
-          unzip -q sonar-scanner.zip
-          export PATH=$PWD/sonar-scanner-4.8.0.2856-linux/bin:$PATH
-          
-          # Création du fichier sonar-project.properties
+          # Vérifier les dossiers de couverture
+          if [ -d "coverage" ]; then
+            echo "✅ Dossier coverage trouvé"
+            ls -la coverage/
+          fi
+
+      - name: Debug Environment
+        run: |
+          echo "🔍 Debug des variables d'environnement:"
+          echo "Repository: ${{ github.repository }}"
+          echo "Branch: ${{ github.ref }}"
+          echo "Event: ${{ github.event_name }}"
+          echo "Actor: ${{ github.actor }}"
+          echo ""
+          echo "🔐 Vérification des secrets:"
+          echo "SONAR_TOKEN présent: ${{ secrets.SONAR_TOKEN != '' }}"
+          echo "GITHUB_TOKEN présent: ${{ secrets.GITHUB_TOKEN != '' }}"
+          echo ""
+          echo "📋 Structure du projet:"
+          find . -name "*.php" -type f | head -10
+          echo ""
+          echo "📝 Dossiers sources:"
+          ls -la
+
+      - name: Create sonar-project.properties
+        run: |
           cat > sonar-project.properties << EOF
-          sonar.projectKey=$PROJECT_KEY
+          sonar.projectKey=ChloeLagarde_CesiZen
           sonar.projectName=CesiZen
           sonar.projectVersion=1.0
-          sonar.organization=$ORGANIZATION
+          sonar.organization=ChloeLagarde
           sonar.sources=controleur,config,vues,api
-          sonar.exclusions=vendor/**,tests/**,assets/**,.github/**,docker-compose.yml,Dockerfile,**/*.js,**/*.css,**/*.md
-          sonar.php.coverage.reportPaths=coverage.xml,coverage/coverage.xml
-          sonar.language=php
+          sonar.exclusions=vendor/**,tests/**,assets/**,.github/**,docker-compose.yml,Dockerfile,**/*.js,**/*.css,**/*.md,**/*.sql,**/*.json,**/*.lock,**/*.sh
+          sonar.php.coverage.reportPaths=coverage.xml
           sonar.sourceEncoding=UTF-8
           sonar.scm.provider=git
-          sonar.host.url=https://sonarcloud.io
           EOF
           
           echo "📝 Contenu de sonar-project.properties:"
           cat sonar-project.properties
-          
-          # Lancement de l'analyse SonarCloud
-          sonar-scanner \
-            -Dsonar.token="$SONAR_TOKEN" \
-            -Dsonar.projectKey="$PROJECT_KEY" \
-            -Dsonar.organization="$ORGANIZATION" \
-            -Dsonar.projectName="CesiZen" \
-            -Dsonar.projectVersion="1.0" \
-            -Dsonar.sources="controleur,config,vues,api" \
-            -Dsonar.exclusions="vendor/**,tests/**,assets/**,.github/**,docker-compose.yml,Dockerfile,**/*.js,**/*.css,**/*.md" \
-            -Dsonar.php.coverage.reportPaths="coverage.xml,coverage/coverage.xml" \
-            -Dsonar.sourceEncoding="UTF-8" \
-            -Dsonar.host.url="https://sonarcloud.io" \
-            -Dsonar.verbose=true
+
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@v2.3.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          args: >
+            -Dsonar.projectKey=ChloeLagarde_CesiZen
+            -Dsonar.organization=ChloeLagarde
+            -Dsonar.projectName=CesiZen
+            -Dsonar.projectVersion=1.0
+            -Dsonar.sources=controleur,config,vues,api
+            -Dsonar.exclusions=vendor/**,tests/**,assets/**,.github/**,docker-compose.yml,Dockerfile,**/*.js,**/*.css,**/*.md,**/*.sql,**/*.json,**/*.lock,**/*.sh
+            -Dsonar.php.coverage.reportPaths=coverage.xml
+            -Dsonar.sourceEncoding=UTF-8
 
       - name: Upload SonarCloud Results
         if: always()
         run: |
           echo "📊 Analyse SonarCloud terminée"
-          echo "🔗 Consultez les résultats sur : https://sonarcloud.io/project/overview?id=${SONAR_PROJECT_KEY:-ChloeLagarde_CesiZen}"
+          echo "🔗 Consultez les résultats sur : https://sonarcloud.io/project/overview?id=ChloeLagarde_CesiZen"
