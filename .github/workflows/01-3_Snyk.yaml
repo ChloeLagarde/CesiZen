@@ -1,11 +1,11 @@
-name: 01-3 - Integration - SNYK Alternative
+name: 01-3 - Integration - SNYK Alternative2
 
 on:
   workflow_call
 
 jobs:
   Security_Analysis:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest  
       
     steps:
       - uses: actions/checkout@v4
