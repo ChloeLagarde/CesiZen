@@ -18,6 +18,8 @@ jobs:
     secrets: inherit
     with:
       docker-mode: canary
+    permissions :  
+      id-token : write
 
   Trivy_Scan_Image:
     needs: [Build_Push_Docker]
