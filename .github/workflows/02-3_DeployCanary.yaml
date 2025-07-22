@@ -8,145 +8,173 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Use Existing VM
+      - name: Set VM IP
         run: |
           echo "AZURE_VM_IP=20.199.81.128" >> $GITHUB_ENV
-          echo "Utilisation de la VM existante : 20.199.81.128"
+          echo "🎯 Déploiement sur VM Azure : 20.199.81.128"
 
-      - name: Install Docker (if not already installed)
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Install Docker and Deploy CesiZen
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{env.AZURE_VM_IP}}
           port: ${{secrets.PORT}} 
           username: ${{secrets.AZURE_VM_LOGIN}}
           password: ${{secrets.AZURE_VM_PASSWORD}}
+          timeout: 300s
+          command_timeout: 600s
           script: |
-            # Vérifier si Docker est installé
+            set -e
+            echo "🚀 Début du déploiement CesiZen Canary"
+            
+            # Installation de Docker sans sudo (méthode alternative)
+            echo "🐳 Vérification de Docker..."
             if ! command -v docker &> /dev/null; then
-                echo "Installation de Docker..."
+                echo "Installation de Docker (méthode rootless)..."
+                # Télécharger le script d'installation
                 curl -fsSL https://get.docker.com -o get-docker.sh
-                sudo sh get-docker.sh
-                sudo usermod -aG docker $USER
+                
+                # Essayer d'installer avec sudo et mot de passe
+                echo "${{secrets.AZURE_VM_PASSWORD}}" | sudo -S sh get-docker.sh
+                echo "${{secrets.AZURE_VM_PASSWORD}}" | sudo -S usermod -aG docker $USER
+                
+                # Redémarrer le service Docker
+                echo "${{secrets.AZURE_VM_PASSWORD}}" | sudo -S systemctl enable docker
+                echo "${{secrets.AZURE_VM_PASSWORD}}" | sudo -S systemctl start docker
+                
+                # Recharger les groupes
+                newgrp docker || true
             else
-                echo "Docker déjà installé"
+                echo "✅ Docker déjà installé"
             fi
             
-            # Vérifier si docker-compose est installé
+            # Installation de docker-compose
+            echo "🔧 Vérification de docker-compose..."
             if ! command -v docker-compose &> /dev/null; then
                 echo "Installation de docker-compose..."
-                sudo curl -L "https://github.com/docker/compose/releases/download/v2.20.0/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-                sudo chmod +x /usr/local/bin/docker-compose
+                # Télécharger dans le dossier home de l'utilisateur
+                mkdir -p $HOME/bin
+                curl -L "https://github.com/docker/compose/releases/download/v2.20.0/docker-compose-$(uname -s)-$(uname -m)" -o $HOME/bin/docker-compose
+                chmod +x $HOME/bin/docker-compose
+                
+                # Ajouter au PATH pour cette session
+                export PATH="$HOME/bin:$PATH"
+                
+                # Vérifier l'installation
+                $HOME/bin/docker-compose --version || echo "Installation locale de docker-compose"
             else
-                echo "docker-compose déjà installé"
+                echo "✅ docker-compose déjà installé"
             fi
-
-      - name: Checkout
-        uses: actions/checkout@v3
-
-      - name: Update compose file
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{env.AZURE_VM_IP}}
-          port: ${{secrets.PORT}} 
-          username: ${{secrets.AZURE_VM_LOGIN}}
-          password: ${{secrets.AZURE_VM_PASSWORD}}
-          source: "./docker-compose.yaml"
-          target: "."
-
-      - name: Downcase Image Name
-        run: echo "IMAGE_NAME_LOWER=${GITHUB_REPOSITORY,,}" >> ${GITHUB_ENV}
-
-      - name: Deploy CesiZen Application
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{env.AZURE_VM_IP}}
-          port: ${{secrets.PORT}} 
-          username: ${{secrets.AZURE_VM_LOGIN}}
-          password: ${{secrets.AZURE_VM_PASSWORD}}
-          script: |
-            echo ${{secrets.GITHUB_TOKEN}} | docker login ghcr.io -u ${{github.actor}} --password-stdin
-
-            # Configuration pour CesiZen
-            cat > .env << EOF
-            CESIZEN_WEB_IMAGE=ghcr.io/${{env.IMAGE_NAME_LOWER}}:canary
-            DB_NAME=cesizentest
-            DB_USER=cesizen
-            DB_PASS=cesizen123
-            DB_ROOT_PASSWORD=rootpassword
-            WEB_PORT=8000
-            DB_PORT=3306
-            ADMINER_PORT=8080
-            EOF
-
-            # Pull et démarrage
-            docker pull ghcr.io/${{env.IMAGE_NAME_LOWER}}:canary
-            docker-compose up -d
-
-            # Attendre que les services soient prêts
-            sleep 30
-
-      - name: Checkout
-        uses: actions/checkout@v3
-
-      - name: Deploy CesiZen files to VM
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{env.AZURE_VM_IP}}
-          port: ${{secrets.PORT}} 
-          username: ${{secrets.AZURE_VM_LOGIN}}
-          password: ${{secrets.AZURE_VM_PASSWORD}}
-          source: "./docker-compose.yaml,./script bdd.sql"
-          target: "/home/${{secrets.AZURE_VM_LOGIN}}/cesizen/"
-
-      - name: Downcase Image Name
-        run: echo "IMAGE_NAME_LOWER=${GITHUB_REPOSITORY,,}" >> ${GITHUB_ENV}
-
-      - name: Deploy CesiZen Application
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{env.AZURE_VM_IP}}
-          port: ${{secrets.PORT}} 
-          username: ${{secrets.AZURE_VM_LOGIN}}
-          password: ${{secrets.AZURE_VM_PASSWORD}}
-          script: |
-            cd /home/${{secrets.AZURE_VM_LOGIN}}/cesizen/
             
-            # Login vers GitHub Container Registry
-            echo ${{secrets.GITHUB_TOKEN}} | docker login ghcr.io -u ${{github.actor}} --password-stdin
-
-            # Configuration pour CesiZen
-            cat > .env << EOF
-            CESIZEN_WEB_IMAGE=ghcr.io/${{env.IMAGE_NAME_LOWER}}:canary
-            DB_NAME=cesizentest
-            DB_USER=cesizen
-            DB_PASS=cesizen123
-            DB_ROOT_PASSWORD=rootpassword
-            WEB_PORT=8000
-            DB_PORT=3306
-            ADMINER_PORT=8080
+            # Utiliser le docker-compose local si disponible
+            DOCKER_COMPOSE_CMD="docker-compose"
+            if [ -f "$HOME/bin/docker-compose" ]; then
+                DOCKER_COMPOSE_CMD="$HOME/bin/docker-compose"
+                export PATH="$HOME/bin:$PATH"
+            fi
+            
+            # Création du dossier de travail
+            mkdir -p $HOME/cesizen
+            cd $HOME/cesizen
+            
+            # Login GitHub Container Registry
+            echo "🔐 Connexion à GHCR..."
+            echo "${{secrets.GITHUB_TOKEN}}" | docker login ghcr.io -u ${{github.actor}} --password-stdin
+            
+            # Configuration Docker Compose
+            echo "⚙️  Configuration Docker Compose..."
+            cat > docker-compose.yml << 'EOF'
+            version: '3.8'
+            services:
+              web:
+                image: ghcr.io/${{github.repository_owner}}/cesizen:canary
+                container_name: cesizen_web
+                ports:
+                  - "8000:80"
+                depends_on:
+                  - database
+                environment:
+                  - DB_HOST=database
+                  - DB_NAME=cesizentest
+                  - DB_USER=cesizen
+                  - DB_PASS=cesizen123
+                networks:
+                  - cesizen_network
+                restart: unless-stopped
+            
+              database:
+                image: mysql:8.0
+                container_name: cesizen_mysql
+                ports:
+                  - "3306:3306"
+                environment:
+                  MYSQL_ROOT_PASSWORD: rootpassword
+                  MYSQL_DATABASE: cesizentest
+                  MYSQL_USER: cesizen
+                  MYSQL_PASSWORD: cesizen123
+                volumes:
+                  - mysql_data:/var/lib/mysql
+                networks:
+                  - cesizen_network
+                command: --default-authentication-plugin=mysql_native_password
+                restart: unless-stopped
+            
+              adminer:
+                image: adminer
+                container_name: cesizen_adminer
+                ports:
+                  - "8080:8080"
+                depends_on:
+                  - database
+                networks:
+                  - cesizen_network
+                restart: unless-stopped
+            
+            volumes:
+              mysql_data:
+            
+            networks:
+              cesizen_network:
+                driver: bridge
             EOF
-
-            # Arrêter les anciens conteneurs s'ils existent
-            docker-compose down -v 2>/dev/null || true
-
-            # Pull de la nouvelle image
-            docker pull ghcr.io/${{env.IMAGE_NAME_LOWER}}:canary
-
-            # Démarrage des services
-            docker-compose up -d
-
-            # Attendre que les services soient prêts
-            echo "Attente du démarrage des services..."
-            sleep 45
-
-            # Vérifier que l'application fonctionne
-            echo "Test de l'application..."
-            curl -f http://localhost:8000 || {
-                echo "Erreur : L'application ne répond pas"
-                docker-compose logs
-                exit 1
-            }
-
-            echo "✅ Déploiement CesiZen réussi !"
-            echo "🌐 Application accessible sur : http://${{env.AZURE_VM_IP}}:8000"
-            echo "🗄️  Adminer accessible sur : http://${{env.AZURE_VM_IP}}:8080"
+            
+            # Arrêt et nettoyage des anciens conteneurs
+            echo "🛑 Nettoyage..."
+            $DOCKER_COMPOSE_CMD down -v 2>/dev/null || true
+            docker system prune -f 2>/dev/null || true
+            
+            # Pull de l'image
+            echo "📥 Téléchargement de l'image..."
+            docker pull ghcr.io/${{github.repository_owner}}/cesizen:canary
+            
+            # Démarrage
+            echo "🚀 Démarrage des services..."
+            $DOCKER_COMPOSE_CMD up -d
+            
+            # Attente et vérification
+            echo "⏳ Attente du démarrage (60 secondes)..."
+            sleep 60
+            
+            # Test de santé
+            echo "🧪 Test de l'application..."
+            for i in {1..5}; do
+                if curl -f --connect-timeout 10 http://localhost:8000 >/dev/null 2>&1; then
+                    echo "✅ CesiZen Canary déployé avec succès !"
+                    echo "🌐 Application : http://20.199.81.128:8000"
+                    echo "🗄️  Adminer : http://20.199.81.128:8080"
+                    
+                    echo "📊 Statut des conteneurs :"
+                    $DOCKER_COMPOSE_CMD ps
+                    exit 0
+                else
+                    echo "⏳ Tentative $i/5 - En attente..."
+                    sleep 15
+                fi
+            done
+            
+            echo "❌ L'application ne répond pas après plusieurs tentatives"
+            echo "📋 Logs des conteneurs :"
+            $DOCKER_COMPOSE_CMD logs --tail=30
+            exit 1
