@@ -85,11 +85,15 @@ jobs:
             
             # Configuration Docker Compose
             echo "⚙️  Configuration Docker Compose..."
-            cat > docker-compose.yml << 'EOF'
+            
+            # Conversion en minuscules pour Docker
+            REPO_OWNER_LOWER=$(echo "${{github.repository_owner}}" | tr '[:upper:]' '[:lower:]')
+            
+            cat > docker-compose.yml << EOF
             version: '3.8'
             services:
               web:
-                image: ghcr.io/${{github.repository_owner}}/cesizen:canary
+                image: ghcr.io/${REPO_OWNER_LOWER}/cesizen:canary
                 container_name: cesizen_web
                 ports:
                   - "8000:80"
@@ -145,9 +149,15 @@ jobs:
             $DOCKER_COMPOSE_CMD down -v 2>/dev/null || true
             docker system prune -f 2>/dev/null || true
             
+            # Conversion en minuscules pour Docker
+            REPO_OWNER_LOWER=$(echo "${{github.repository_owner}}" | tr '[:upper:]' '[:lower:]')
+            IMAGE_NAME="ghcr.io/${REPO_OWNER_LOWER}/cesizen:canary"
+            
+            echo "🏷️  Image à télécharger : $IMAGE_NAME"
+            
             # Pull de l'image
             echo "📥 Téléchargement de l'image..."
-            docker pull ghcr.io/${{github.repository_owner}}/cesizen:canary
+            docker pull "$IMAGE_NAME"
             
             # Démarrage
             echo "🚀 Démarrage des services..."
