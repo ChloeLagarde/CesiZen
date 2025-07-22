@@ -2,11 +2,19 @@
 // Vérifier si la classe Database n'existe pas déjà
 if (!class_exists('Database')) {
     class Database {
-        private $host = 'localhost';
-        private $db_name = 'cesizentest'; // remplace par le nom de ta base
-        private $username = 'root';
-        private $password = '';
+        private $host;
+        private $db_name;
+        private $username;
+        private $password;
         private $conn;
+
+        public function __construct() {
+            // Configuration pour Docker
+            $this->host = getenv('DB_HOST') ?: 'database'; // nom du service Docker
+            $this->db_name = getenv('DB_NAME') ?: 'cesizentest'; // VOTRE BASE DE DONNÉES
+            $this->username = getenv('DB_USER') ?: 'root';
+            $this->password = getenv('DB_PASS') ?: '';
+        }
 
         public function getConnection() {
             $this->conn = null;
