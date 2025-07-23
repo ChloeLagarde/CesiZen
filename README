@@ -1,0 +1,593 @@
+# CesiZen 🧘‍♀️
+
+> Application web de gestion du bien-être mental avec exercices de respiration, ressources et suivi personnalisé.
+
+[![CI/CD Pipeline](https://github.com/ChloeLagarde/CesiZen/actions/workflows/_01_Integration.yaml/badge.svg)](https://github.com/ChloeLagarde/CesiZen/actions)
+[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=ChloeLagarde_CesiZen&metric=alert_status)](https://sonarcloud.io/project/overview?id=ChloeLagarde_CesiZen)
+
+## 📋 Table des matières
+
+- [Description](#-description)
+- [Technologies](#️-technologies)
+- [Architecture](#-architecture)
+- [Installation](#-installation)
+- [Structure du projet](#-structure-du-projet)
+- [Fonctionnalités](#-fonctionnalités)
+- [API](#-api)
+- [Tests](#-tests)
+- [CI/CD](#-cicd)
+- [Sécurité](#-sécurité)
+- [Contribution](#-contribution)
+
+## 🎯 Description
+
+**CesiZen** est une application web dédiée au bien-être mental qui offre :
+
+- **Exercices de respiration guidés** avec minuteurs interactifs
+- **Gestion de ressources** pédagogiques (articles, guides, méditations)
+- **Système d'authentification** avec gestion des rôles
+- **Interface responsive** avec Bootstrap 5
+- **API REST** pour l'intégration externe
+
+### 👥 Utilisateurs cibles
+
+- **Utilisateurs** : Accès aux exercices et ressources
+- **Administrateurs** : Gestion complète des utilisateurs et ressources
+
+## 🛠️ Technologies
+
+### Backend
+- **PHP 8.2** - Langage principal
+- **MySQL 8.0** - Base de données
+- **PDO** - Couche d'abstraction base de données
+
+### Frontend
+- **HTML5/CSS3** - Structure et styles
+- **Bootstrap 5.3** - Framework CSS responsive
+- **JavaScript vanilla** - Interactions client
+
+### DevOps & Outils
+- **Docker & Docker Compose** - Conteneurisation
+- **GitHub Actions** - CI/CD
+- **PHPUnit 9.6** - Tests unitaires et d'intégration
+- **SonarCloud** - Analyse qualité code
+- **Snyk** - Analyse sécurité
+- **Trivy** - Scan vulnérabilités containers
+- **OWASP ZAP** - Tests sécurité web
+
+## 🏗 Architecture
+
+### Modèle MVC Simplifié
+
+```
+CesiZen/
+├── 📁 vues/           # Interface utilisateur (Views)
+├── 📁 controleur/     # Logique métier (Controllers)
+├── 📁 config/         # Configuration (Database)
+├── 📁 api/           # Endpoints REST
+└── 📁 assets/        # Ressources statiques
+```
+
+### Diagramme d'architecture
+
+```mermaid
+graph TB
+    U[Utilisateur] --> V[Vues PHP]
+    V --> C[Contrôleurs]
+    C --> DB[(MySQL)]
+    C --> API[API REST]
+    
+    subgraph "Couches"
+        V
+        C
+        DB
+        API
+    end
+```
+
+## 🚀 Installation
+
+### Prérequis
+
+- **PHP 8.2+** avec extensions : `pdo`, `pdo_mysql`, `mysqli`, `mbstring`
+- **MySQL 8.0+**
+- **Composer** (pour les dépendances PHP)
+- **Docker & Docker Compose** (recommandé)
+
+### Option 1 : Installation avec Docker (Recommandée)
+
+```bash
+# 1. Cloner le projet
+git clone https://github.com/ChloeLagarde/CesiZen.git
+cd CesiZen
+
+# 2. Copier la configuration
+cp .env.example .env
+
+# 3. Démarrer les services
+docker-compose up -d
+
+# 4. Initialiser la base de données
+docker-compose exec database mysql -u root -p < docker-init.sql
+
+# 5. Accéder à l'application
+# Web: http://localhost:8000
+# PhpMyAdmin: http://localhost:8080
+# Adminer: http://20.199.81.128:8080 (production)
+```
+
+### Option 2 : Installation locale
+
+```bash
+# 1. Cloner et configurer
+git clone https://github.com/ChloeLagarde/CesiZen.git
+cd CesiZen
+
+# 2. Installer les dépendances
+composer install
+
+# 3. Configurer la base de données
+mysql -u root -p < "script bdd.sql"
+
+# 4. Configurer le serveur web
+# Pointer le DocumentRoot vers /vues/
+# Exemple avec Apache/WAMP
+```
+
+### Variables d'environnement
+
+```bash
+# Base de données
+DB_HOST=database          # localhost pour installation locale
+DB_NAME=cesizentest
+DB_USER=cesizen
+DB_PASS=cesizen123
+DB_PORT=3306
+
+# Application
+APP_ENV=development
+APP_DEBUG=true
+APP_URL=http://localhost:8000
+```
+
+## 📁 Structure du projet
+
+```
+CesiZen/
+├── 📄 README.md
+├── 📄 composer.json                 # Dépendances PHP
+├── 📄 docker-compose.yml           # Configuration Docker
+├── 📄 Dockerfile                   # Image Docker
+├── 📄 phpunit.xml                  # Configuration tests
+│
+├── 📁 .github/workflows/           # CI/CD GitHub Actions
+│   ├── _01_Integration.yaml        # Tests et qualité
+│   ├── _02_Canary.yaml            # Déploiement canary
+│   ├── 01-1_TestPHP.yaml          # Tests PHP + Docker
+│   ├── 01-2_SonarQube.yaml        # Analyse SonarCloud
+│   ├── 01-3_Snyk.yaml             # Scan sécurité Snyk
+│   ├── 02-2_TrivyScan.yaml        # Scan containers
+│   ├── 02-3_DeployCanary.yaml     # Déploiement Azure
+│   ├── 02-4_ZapScan.yaml          # Tests sécurité ZAP
+│   └── z_Docker-Ghcr.yaml         # Build Docker
+│
+├── 📁 api/                         # API REST
+│   ├── ressources.php              # CRUD ressources
+│   └── users.php                   # CRUD utilisateurs
+│
+├── 📁 assets/                      # Ressources statiques
+│   ├── 📁 css/
+│   │   └── styles.css              # Styles Bootstrap custom
+│   └── 📁 js/
+│       └── script.js               # JavaScript interactions
+│
+├── 📁 config/                      # Configuration
+│   ├── database.php                # Connexion DB standard
+│   └── database_docker.php         # Connexion DB Docker
+│
+├── 📁 controleur/                  # Logique métier
+│   ├── auth.php                    # Authentification
+│   ├── gestionCompte.php           # Gestion profil utilisateur
+│   ├── gestionRespiration.php      # Exercices respiration
+│   ├── gestionRessources.php       # CRUD ressources
+│   └── gestionUser.php             # CRUD utilisateurs (admin)
+│
+├── 📁 tests/                       # Tests automatisés
+│   ├── AuthTest.php                # Tests authentification
+│   ├── DatabaseTest.php            # Tests base de données
+│   ├── IntegrationTest.php         # Tests d'intégration
+│   └── ...                         # Autres tests unitaires
+│
+└── 📁 vues/                        # Interface utilisateur
+    ├── header.php                  # Menu navigation
+    ├── index.php                   # Page d'accueil
+    ├── login.php                   # Connexion
+    ├── register.php                # Inscription
+    ├── Exercice.php                # Liste exercices
+    ├── respiration.php             # Exercice interactif
+    ├── ressources.php              # Liste ressources
+    ├── monCompte.php               # Profil utilisateur
+    ├── vueGestionUser.php          # Admin - Gestion users
+    ├── vueGestionRessources.php    # Admin - Gestion resources
+    └── 📁 composants/
+        └── footer.php              # Pied de page
+```
+
+## ✨ Fonctionnalités
+
+### 🔐 Authentification & Autorisation
+
+```php
+// Connexion utilisateur
+$auth = new Auth();
+$result = $auth->login($email, $password);
+
+// Vérification admin
+function verifierAdmin() {
+    if (!isset($_SESSION['user']) || $_SESSION['user']['role'] !== 'admin') {
+        header("Location: ../vues/login.php");
+        exit();
+    }
+}
+```
+
+**Rôles disponibles :**
+- `utilisateur` : Accès exercices et ressources
+- `admin` : Gestion complète + accès utilisateur
+
+### 🫁 Exercices de respiration
+
+**Patterns disponibles :**
+- **Avancé (7-4-8)** : Inspiration 7s, Apnée 4s, Expiration 8s
+- **Moyen (5-0-5)** : Inspiration 5s, Expiration 5s
+- **Simple (4-0-6)** : Inspiration 4s, Expiration 6s
+
+```javascript
+// Exemple d'utilisation du minuteur
+const respirationTimer = {
+    inspiration: 7,
+    apnee: 4,
+    expiration: 8
+};
+```
+
+### 📚 Gestion des ressources
+
+**Types de ressources :**
+- Articles de bien-être
+- Guides de méditation
+- Exercices de cohérence cardiaque
+- Ressources pédagogiques
+
+**Fonctionnalités :**
+- ✅ CRUD complet (admin)
+- ✅ Catégorisation
+- ✅ Visibilité publique/privée
+- ✅ Gestion des auteurs
+
+### 👤 Gestion des utilisateurs
+
+**Fonctionnalités admin :**
+```php
+// Actions disponibles
+- ajouterUtilisateur()      // Créer un compte
+- modifierUtilisateur()     // Modifier infos
+- supprimerUtilisateur()    // Supprimer compte
+- activerUtilisateur()      // Réactiver compte
+- desactiverUtilisateur()   // Désactiver compte
+```
+
+**Sécurité :**
+- Mots de passe hashés (PASSWORD_DEFAULT)
+- Protection CSRF
+- Validation des entrées
+- Gestion des sessions
+
+## 🔌 API
+
+### Endpoints disponibles
+
+#### Ressources
+```http
+GET    /api/ressources.php          # Liste toutes les ressources
+GET    /api/ressources.php/3        # Récupère la ressource ID 3
+POST   /api/ressources.php          # Crée une ressource
+PUT    /api/ressources.php/3        # Modifie la ressource ID 3
+DELETE /api/ressources.php/3        # Supprime la ressource ID 3
+```
+
+#### Utilisateurs
+```http
+GET    /api/users.php               # Liste tous les utilisateurs
+GET    /api/users.php/3             # Récupère l'utilisateur ID 3
+POST   /api/users.php               # Crée un utilisateur
+PUT    /api/users.php/3             # Modifie l'utilisateur ID 3
+DELETE /api/users.php/3             # Supprime l'utilisateur ID 3
+```
+
+### Exemples d'utilisation
+
+```javascript
+// Créer une ressource
+fetch('/api/ressources.php', {
+    method: 'POST',
+    headers: {
+        'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+        titre: 'Guide méditation',
+        description: 'Guide pour débutants',
+        lien: 'https://example.com/guide.pdf'
+    })
+});
+
+// Récupérer toutes les ressources
+fetch('/api/ressources.php')
+    .then(response => response.json())
+    .then(data => console.log(data));
+```
+
+## 🧪 Tests
+
+### Types de tests
+
+1. **Tests unitaires** - Composants isolés
+2. **Tests d'intégration** - Interactions entre composants
+3. **Tests de sécurité** - OWASP ZAP
+4. **Tests de vulnérabilités** - Snyk & Trivy
+
+### Lancer les tests
+
+```bash
+# Tests unitaires
+./vendor/bin/phpunit
+
+# Tests spécifiques
+./vendor/bin/phpunit tests/AuthTest.php
+./vendor/bin/phpunit tests/IntegrationTest.php
+
+# Tests avec couverture
+./vendor/bin/phpunit --coverage-html coverage/
+
+# Nettoyer avant tests
+chmod +x tests/clean_test.sh
+./tests/clean_test.sh
+```
+
+### Configuration PHPUnit
+
+```xml
+<!-- phpunit.xml -->
+<phpunit bootstrap="vendor/autoload.php" colors="true">
+    <testsuites>
+        <testsuite name="CesiZen Test Suite">
+            <directory>tests</directory>
+        </testsuite>
+    </testsuites>
+    
+    <php>
+        <env name="DB_HOST" value="127.0.0.1"/>
+        <env name="DB_NAME" value="cesizentest"/>
+        <env name="DB_USER" value="cesizen"/>
+        <env name="DB_PASS" value="cesizen123"/>
+    </php>
+</phpunit>
+```
+
+## 🔄 CI/CD
+
+### Pipeline automatique
+
+```mermaid
+graph LR
+    A[Push Code] --> B[Tests PHP]
+    B --> C[SonarCloud]
+    B --> D[Snyk Security]
+    C --> E[Build Docker]
+    D --> E
+    E --> F[Trivy Scan]
+    F --> G[Deploy Canary]
+    G --> H[ZAP Security Test]
+```
+
+### Étapes du pipeline
+
+1. **Tests PHP** (`01-1_TestPHP.yaml`)
+   - Tests unitaires PHPUnit
+   - Tests d'intégration
+   - Couverture de code
+
+2. **Qualité Code** (`01-2_SonarQube.yaml`)
+   - Analyse statique SonarCloud
+   - Détection bugs & vulnérabilités
+   - Métriques qualité
+
+3. **Sécurité** (`01-3_Snyk.yaml`)
+   - Scan dépendances PHP
+   - Scan code source
+   - Monitoring continu
+
+4. **Build & Deploy** (`_02_Canary.yaml`)
+   - Construction image Docker
+   - Push vers GitHub Container Registry
+   - Déploiement canary sur Azure VM
+
+5. **Tests sécurité** (`02-4_ZapScan.yaml`)
+   - Scan OWASP ZAP baseline
+   - Tests API endpoints
+   - Tests interface admin
+
+### Déploiement
+
+```bash
+# Production (Azure VM)
+URL: http://20.199.81.128:8000
+Admin: http://20.199.81.128:8080
+
+# Images Docker
+Registry: ghcr.io/chloelagarde/cesizen
+Tags: latest, canary
+```
+
+## 🔒 Sécurité
+
+### Mesures implémentées
+
+#### Authentification
+```php
+// Hash sécurisé des mots de passe
+$hashedPassword = password_hash($password, PASSWORD_DEFAULT);
+
+// Vérification
+if (password_verify($password, $user['password'])) {
+    // Authentifié
+}
+```
+
+#### Protection des sessions
+```php
+// Démarrage sécurisé
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+// Validation des permissions
+if (!isset($_SESSION['user']) || $_SESSION['user']['role'] !== 'admin') {
+    header("Location: login.php");
+    exit();
+}
+```
+
+#### Prévention des injections SQL
+```php
+// Requêtes préparées
+$stmt = $conn->prepare("SELECT * FROM users WHERE email = ?");
+$stmt->execute([$email]);
+```
+
+#### Headers de sécurité (API)
+```php
+header("Access-Control-Allow-Origin: *");
+header("Content-Type: application/json; charset=UTF-8");
+header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
+```
+
+### Outils de sécurité
+
+- **Snyk** : Scan vulnérabilités dépendances
+- **Trivy** : Scan images Docker
+- **OWASP ZAP** : Tests sécurité web automatisés
+- **SonarCloud** : Détection failles de sécurité code
+
+## 🤝 Contribution
+
+### Workflow de développement
+
+```bash
+# 1. Fork & Clone
+git clone https://github.com/VotreUsername/CesiZen.git
+cd CesiZen
+
+# 2. Créer une branche feature
+git checkout -b feature/nouvelle-fonctionnalite
+
+# 3. Développer & tester
+docker-compose up -d
+./vendor/bin/phpunit
+
+# 4. Commit & Push
+git add .
+git commit -m "feat: ajouter nouvelle fonctionnalité"
+git push origin feature/nouvelle-fonctionnalite
+
+# 5. Créer une Pull Request
+```
+
+### Standards de code
+
+#### PHP
+- **PSR-12** pour le style de code
+- **Commentaires PHPDoc** pour les méthodes publiques
+- **Validation des entrées** systématique
+- **Gestion d'erreurs** avec try/catch
+
+#### Base de données
+- **Requêtes préparées** obligatoires
+- **Transactions** pour les opérations complexes
+- **Index** sur les colonnes fréquemment requêtées
+
+#### Frontend
+- **HTML sémantique**
+- **Bootstrap classes** pour le styling
+- **JavaScript vanilla** (pas de jQuery)
+- **Responsive design** mobile-first
+
+### Ajouts de fonctionnalités
+
+#### Nouvelle page
+```php
+// 1. Créer la vue
+// vues/nouvelle-page.php
+<?php include 'header.php'; ?>
+<div class="container">
+    <!-- Contenu -->
+</div>
+<?php include 'composants/footer.php'; ?>
+
+// 2. Ajouter le contrôleur si nécessaire
+// controleur/gestion-nouvelle-fonctionnalite.php
+
+// 3. Ajouter les tests
+// tests/NouvelleFonctionnaliteTest.php
+```
+
+#### Nouvel endpoint API
+```php
+// api/nouveau-endpoint.php
+<?php
+require_once '../config/database.php';
+
+header("Content-Type: application/json; charset=UTF-8");
+header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
+
+$method = $_SERVER['REQUEST_METHOD'];
+$conn = Database::connect();
+
+switch ($method) {
+    case 'GET':
+        // Logique GET
+        break;
+    case 'POST':
+        // Logique POST
+        break;
+    // ...
+}
+?>
+```
+
+### Issues & Bugs
+
+Avant de signaler un bug :
+
+1. **Vérifier les logs** Docker : `docker-compose logs`
+2. **Reproduire le problème** en local
+3. **Tester avec les dernières versions**
+4. **Fournir les détails** :
+   - Version PHP
+   - Version navigateur
+   - Étapes pour reproduire
+   - Messages d'erreur complets
+
+## 📞 Support
+
+- **Issues GitHub** : [github.com/ChloeLagarde/CesiZen/issues](https://github.com/ChloeLagarde/CesiZen/issues)
+- **Documentation API** : Disponible dans `/api/`
+- **Tests CI/CD** : Consultables dans Actions GitHub
+
+## 📝 Licence
+
+Ce projet est sous licence MIT. Voir le fichier `LICENSE` pour plus de détails.
+
+---
+
+**CesiZen** - Développé avec ❤️ pour le bien-être mental digital.
