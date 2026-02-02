@@ -1,5 +1,5 @@
 # Utilise l'image officielle PHP avec Apache
-FROM php:8.2-apache
+FROM php:8.5.3RC1-apache
 
 # Installation des extensions PHP nécessaires pour CesiZen
 RUN apt-get update && apt-get install -y \
